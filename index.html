@@ -508,6 +508,23 @@
       return t;
     }
 
+    function createArchivoSignTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 114;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(0, 0, 512, 114);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(8, 8, 496, 98);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 66px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ARCHIVO', 256, 60);
+      return new THREE.CanvasTexture(c);
+    }
+
     const MAT = {
       wall: mt(0xf8fafc, { roughness: 0.8, metalness: 0.02 }),
       wallZocalo: mt(0x475569, { roughness: 0.75 }),
@@ -530,6 +547,7 @@
       glass: new THREE.MeshPhysicalMaterial({ color: 0x93c5fd, transmission: 0.85, opacity: 0.9, transparent: true, roughness: 0.08, ior: 1.5 }),
       meshCage: new THREE.MeshStandardMaterial({ map: createMeshCageTexture(), transparent: true, alphaTest: 0.3, roughness: 0.5, metalness: 0.7 }),
       evacSign: new THREE.MeshStandardMaterial({ map: createEvacuationSignTexture(), emissive: 0x15803d, emissiveIntensity: 0.45 }),
+      archivoSign: new THREE.MeshStandardMaterial({ map: createArchivoSignTexture(), emissive: 0x1e3a8a, emissiveIntensity: 0.3 }),
       drainGrate: mt(0x334155, { metalness: 0.85, roughness: 0.3 }),
       whiteTile: mt(0xf1f5f9, { roughness: 0.25, metalness: 0.1 })
     };
@@ -974,11 +992,8 @@
 
       const cageGroup = new THREE.Group();
       cageGroup.position.set(3.4, LAYOUT.BASE, -22.5);
-      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, -2.4);
-      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, 2.4);
-      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, 0);
-      addBox(cageGroup, 0.05, 2.6, 4.8, MAT.meshCage, -1.4, 1.3, 0);
-      addBox(cageGroup, 0.06, 0.25, 1.2, mt(0x1e3a8a), -1.44, 2.2, 0);
+      // (malla metálica retirada; el rótulo azul pasa a la pared este, sobre los gabinetes)
+      addBox(cageGroup, 0.06, 0.25, 1.2, mt(0x1e3a8a), 1.55, 2.55, 0);
       addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, -1.1);
       addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, 1.1);
       root.add(cageGroup);
@@ -988,10 +1003,9 @@
       mercCLA.rotation.y = Math.PI / 2;
       root.add(mercCLA);
 
-      const peugeotSUV = createCar('suv', 0x1e293b, { plate: 'PEU 300' });
-      peugeotSUV.position.set(2.2, LAYOUT.BASE, -28.5);
-      peugeotSUV.rotation.y = Math.PI / 2;
-      root.add(peugeotSUV);
+      // estantes en la pared este del sótano (donde estaba el carro negro)
+      addRack(4.65, -27.5, true, 1.7, LAYOUT.BASE);
+      addRack(4.65, -29.4, true, 1.7, LAYOUT.BASE);
 
       const ecoSport = createCar('suv', 0xd1d5db, { plate: 'ECO 505' });
       ecoSport.position.set(-2.2, LAYOUT.BASE, -26.5);
@@ -1061,6 +1075,19 @@
         }
       }
 
+      // caja de herramientas colgada en la pared este, sobre el carrito azul (z -18.5)
+      {
+        const tbX = 4.875, tbY = 1.8, tbZ = -18.5;
+        const tbRed = mt(0xdc2626, { roughness: 0.45, metalness: 0.5 });
+        const tbDark = mt(0x7f1d1d, { roughness: 0.5, metalness: 0.4 });
+        addBox(root, 0.2, 0.5, 0.9, tbRed, tbX, tbY, tbZ);                    // cuerpo
+        addBox(root, 0.215, 0.07, 0.93, tbDark, tbX, tbY + 0.215, tbZ);       // tapa
+        addBox(root, 0.205, 0.012, 0.9, tbDark, tbX - 0.002, tbY + 0.02, tbZ);// junta de cajón
+        addBox(root, 0.205, 0.012, 0.9, tbDark, tbX - 0.002, tbY - 0.14, tbZ);// junta de cajón
+        for (const hy of [tbY - 0.06, tbY - 0.2]) addBox(root, 0.04, 0.025, 0.3, MAT.steel, tbX - 0.115, hy, tbZ);   // manijas
+        addBox(root, 0.04, 0.05, 0.08, MAT.steel, tbX - 0.11, tbY + 0.19, tbZ);                                     // broche
+      }
+
       // --- 4.9 Recepción & Sala de Espera ---
       // Volumen cerrado de habitaciones (x 2.2 → 5.0, z -1.0 → -14.4), bajo la losa de Gerencia.
       // Fachada hacia la nave, de adelante hacia atrás:
@@ -1093,11 +1120,15 @@
       evacBodega.position.set(2.12, 2.62, bodegaZ);
       evacBodega.rotation.y = -Math.PI / 2;
       root.add(evacBodega);
+      const archivoBodega = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.19), MAT.archivoSign);
+      archivoBodega.position.set(2.12, 2.305, bodegaZ);
+      archivoBodega.rotation.y = -Math.PI / 2;
+      root.add(archivoBodega);
 
       // estantería interior de la Bodega (estantes naranja con cajas y galones)
-      function addRack(cx, cz, alongZ, len) {
+      function addRack(cx, cz, alongZ, len, cy = 0) {
         const rk = new THREE.Group();
-        rk.position.set(cx, 0, cz);
+        rk.position.set(cx, cy, cz);
         if (!alongZ) rk.rotation.y = Math.PI / 2;
         for (const px of [-0.3, 0.3]) for (const pz of [-len / 2, len / 2]) addBox(rk, 0.05, 2.3, 0.05, MAT.orange, px, 1.15, pz);
         const palette = [0xc2a27a, 0x1e3a8a, 0xdc2626, 0x111827, 0xe5e7eb];
