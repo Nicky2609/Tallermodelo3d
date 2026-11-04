@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" />
+  <title>Taller Principal Motors 3D Pro - Digital Twin D34</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet" />
+  <!-- Lucide Icons versión fijada -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #0b0f17;
+    }
+
+    canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: .375rem;
+      padding: .4rem .75rem;
+      border-radius: .75rem;
+      font-size: .72rem;
+      font-weight: 600;
+      white-space: nowrap;
+      color: #cbd5e1;
+      background: rgba(30, 41, 59, .55);
+      border: 1px solid rgba(255, 255, 255, .06);
+      transition: all .15s;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .chip:hover {
+      color: #fff;
+    }
+
+    .chip:active {
+      transform: scale(.95);
+    }
+
+    .chip.active {
+      background: rgba(37, 99, 235, .35);
+      color: #bfdbfe;
+      border-color: rgba(59, 130, 246, .5);
+    }
+
+    .pad-btn {
+      width: 3.1rem;
+      height: 3.1rem;
+      border-radius: .9rem;
+      background: rgba(15, 23, 42, .82);
+      border: 1px solid rgba(255, 255, 255, .15);
+      color: #e2e8f0;
+      font-size: 1rem;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .pad-btn:active {
+      background: rgba(37, 99, 235, .55);
+    }
+  </style>
+  <!-- Three.js & Addons Importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body class="bg-slate-950 text-slate-100 h-screen w-screen overflow-hidden flex flex-col justify-between">
+  <!-- 3D Canvas WebGL Container -->
+  <div class="absolute inset-0 z-0" id="webgl-container"></div>
+
+  <!-- ===== BARRA DE NAVEGACIÓN SUPERIOR (reemplaza header + chips + dock inferior) ===== -->
+  <nav class="fixed top-0 inset-x-0 z-30 p-2 pointer-events-none">
+    <div class="glass-panel rounded-2xl pointer-events-auto">
+      <!-- Fila 1: marca, vista actual y acciones -->
+      <div class="flex items-center justify-between gap-2 px-3 pt-2 pb-1">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div
+            class="w-8 h-8 shrink-0 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <i class="w-4 h-4 text-white" data-lucide="wrench"></i>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span
+                class="text-xs font-black tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-sky-300 to-slate-100 whitespace-nowrap">PRINCIPAL
+                MOTORS</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              <span
+                class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30 font-medium"
+                id="cam-mode-badge">Orbital</span>
+            </div>
+            <h4 class="text-[11px] font-bold text-white truncate" id="view-title">Zona Exterior &amp; Fachada</h4>
+            <p class="hidden sm:block text-[10px] text-slate-400 truncate" id="view-desc">Parapeta grafito 10x8.2m, vano
+              despejado y vecinos Tecniracer / Auto Rueda</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button
+            class="glass-panel px-3 h-9 rounded-xl flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white active:scale-95 transition-all"
+            id="btn-walk" title="Paseo en primera persona (tecla P)">
+            <i class="w-3.5 h-3.5 text-emerald-400" data-lucide="footprints"></i><span>Paseo</span>
+          </button>
+          <button
+            class="glass-panel w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-white active:scale-95 transition-all"
+            id="btn-lights" title="Alternar Iluminación Noche/Día">
+            <i class="w-4 h-4 text-amber-400" data-lucide="sun" id="light-icon"></i>
+          </button>
+          <button
+            class="glass-panel px-3 h-9 rounded-xl flex items-center gap-1.5 text-xs font-semibold text-blue-300 hover:text-blue-100 active:scale-95 transition-all"
+            id="glb" title="Exportar Modelo GLB">
+            <i class="w-3.5 h-3.5" data-lucide="download"></i><span>GLB</span>
+          </button>
+        </div>
+      </div>
+      <!-- Fila 2: vistas -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar px-3 py-1" id="chips-container">
+        <button class="view-btn chip active" data-v="ext"><i class="w-3.5 h-3.5" data-lucide="building"></i>
+          Fachada</button>
+        <button class="view-btn chip" data-v="p1"><i class="w-3.5 h-3.5" data-lucide="car"></i> Planta 1</button>
+        <button class="view-btn chip" data-v="rec"><i class="w-3.5 h-3.5" data-lucide="armchair"></i> Recepción &amp;
+          Espera</button>
+        <button class="view-btn chip" data-v="arch"><i class="w-3.5 h-3.5" data-lucide="archive"></i> Archivo &amp;
+          Evac</button>
+        <button class="view-btn chip" data-v="ger"><i class="w-3.5 h-3.5" data-lucide="briefcase"></i> Gerencia
+          P2</button>
+        <button class="view-btn chip" data-v="rampa"><i class="w-3.5 h-3.5" data-lucide="trending-down"></i>
+          Rampa</button>
+        <button class="view-btn chip" data-v="taller_esp"><i class="w-3.5 h-3.5" data-lucide="hammer"></i> Taller
+          Especializado</button>
+        <button class="view-btn chip" data-v="sot"><i class="w-3.5 h-3.5" data-lucide="layers"></i> Sótano</button>
+        <button class="view-btn chip" data-v="jaulas"><i class="w-3.5 h-3.5" data-lucide="lock"></i> Herramienta
+          Esp.</button>
+        <button class="view-btn chip" data-v="aer"><i class="w-3.5 h-3.5" data-lucide="compass"></i> Vista
+          Aérea</button>
+      </div>
+      <!-- Fila 3: capas y controles de sección -->
+      <div class="flex items-center gap-3 overflow-x-auto no-scrollbar px-3 pt-1 pb-2">
+        <button
+          class="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white active:scale-95 transition-all whitespace-nowrap"
+          id="btn-roof-cycle">
+          <div
+            class="w-3.5 h-3.5 rounded-md bg-blue-600 border border-blue-400 flex items-center justify-center text-[9px] font-bold text-white"
+            id="roof-indicator">S</div>
+          <span class="text-[11px] font-semibold" id="roof-label">Techo: Sólido</span>
+        </button>
+        <div class="h-4 w-[1px] bg-slate-700/60 shrink-0"></div>
+        <label
+          class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white active:scale-95 transition-all whitespace-nowrap">
+          <input checked="" class="hidden peer" id="m" type="checkbox" />
+          <div
+            class="w-4 h-4 rounded-md bg-slate-800 border border-slate-600 peer-checked:bg-blue-600 peer-checked:border-blue-400 flex items-center justify-center transition-all">
+            <i class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" data-lucide="check"></i>
+          </div>
+          <span class="text-[11px] font-semibold">Muros</span>
+        </label>
+        <div class="h-4 w-[1px] bg-slate-700/60 shrink-0"></div>
+        <label
+          class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-300 hover:text-white active:scale-95 transition-all whitespace-nowrap">
+          <input checked="" class="hidden peer" id="losa-toggle" type="checkbox" />
+          <div
+            class="w-4 h-4 rounded-md bg-slate-800 border border-slate-600 peer-checked:bg-blue-600 peer-checked:border-blue-400 flex items-center justify-center transition-all">
+            <i class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" data-lucide="check"></i>
+          </div>
+          <span class="text-[11px] font-semibold">Losa P1</span>
+        </label>
+        <div class="h-4 w-[1px] bg-slate-700/60 shrink-0"></div>
+        <button
+          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-semibold active:scale-95 transition-all whitespace-nowrap"
+          id="btn-elevators">
+          <i class="w-3 h-3" data-lucide="arrow-up-down"></i><span>Elevadores</span>
+        </button>
+        <div class="h-4 w-[1px] bg-slate-700/60 shrink-0"></div>
+        <button
+          class="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-200 active:scale-95 transition-all whitespace-nowrap"
+          id="btn-reset">
+          <i class="w-3 h-3" data-lucide="rotate-ccw"></i><span>Centrar</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Cruceta táctil (solo aparece en modo Paseo) -->
+  <div class="hidden fixed bottom-6 left-4 z-30" id="walk-pad">
+    <div class="grid grid-cols-3 gap-1.5">
+      <span></span><button class="pad-btn" data-key="KeyW">▲</button><span></span>
+      <button class="pad-btn" data-key="KeyA">◀</button>
+      <button class="pad-btn" data-key="ShiftLeft" style="font-size:.6rem">Correr</button>
+      <button class="pad-btn" data-key="KeyD">▶</button>
+      <span></span><button class="pad-btn" data-key="KeyS">▼</button><span></span>
+    </div>
+  </div>
+
+  <!-- Ayuda de controles -->
+  <div class="fixed bottom-2 inset-x-0 z-20 px-4 text-center text-[10px] text-slate-400/80 pointer-events-none"
+    id="nav-hint"></div>
+
+  <!-- Three.js App Module -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+
+    // =========================================================================
+    // 0. TABLA MAESTRA LAYOUT (D = 34 PROVISIONAL)
+    // =========================================================================
+    const LAYOUT = {
+      W: 10.0,
+      D: 34.0,           // Profundidad provisional ajustada
+      H: 6.2,            // Altura lateral nave
+      RIDGE: 7.6,        // Altura cumbrera
+      BASE: -3.4,        // Piso de sótano
+      FL: 3.3,           // Altura segundo piso Gerencia
+      WALL_THICK: 0.28,
+      WALL_CENTER_X: 5.14,
+      WALL_BACK_Z: -34.0,
+
+      // Rampa vehicular al sótano
+      RAMP_CENTER_X: -3.25,
+      RAMP_Z_START: -2.5,
+      RAMP_Z_END: -13.5,
+      RAMP_WIDTH: 3.5,
+
+      // Columnas sótano
+      BASEMENT_COLS_Z: [-18, -26]
+    };
+
+    // =========================================================================
+    // 1. CONFIGURACIÓN DEL RENDERER & ESCENA
+    // =========================================================================
+    const container = document.getElementById('webgl-container');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f172a);
+    scene.fog = new THREE.FogExp2(0x0f172a, 0.008);
+
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.05, 300);
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    // Luces globales
+    const hemiLight = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 1.25);
+    scene.add(hemiLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfff7ed, 2.3);
+    sunLight.position.set(32, 50, 24);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.camera.left = -35;
+    sunLight.shadow.camera.right = 35;
+    sunLight.shadow.camera.top = 35;
+    sunLight.shadow.camera.bottom = -35;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.far = 130;
+    sunLight.shadow.bias = -0.0003;
+    sunLight.target.position.set(0, 0, -LAYOUT.D / 2);
+    scene.add(sunLight, sunLight.target);
+
+    // Luces independientes
+    const lightsGroup = new THREE.Group();
+    scene.add(lightsGroup);
+
+    // Asfalto y entorno de calle
+    const groundGeo = new THREE.PlaneGeometry(120, 36);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x1c2128, roughness: 0.9, metalness: 0.1 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.set(0, -0.02, 14);
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.85 });
+    const tactileMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.7 });
+    const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(64, 0.18, 5.2), sidewalkMat);
+    sidewalk.position.set(0, 0.09, 3.6);
+    sidewalk.receiveShadow = true;
+    scene.add(sidewalk);
+    const tactileStripe = new THREE.Mesh(new THREE.BoxGeometry(62, 0.02, 0.45), tactileMat);
+    tactileStripe.position.set(0, 0.19, 2.3);
+    scene.add(tactileStripe);
+
+    const yellowStripeMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+    for (let x = -40; x <= 40; x += 10) {
+      const stripe = new THREE.Mesh(new THREE.PlaneGeometry(5, 0.25), yellowStripeMat);
+      stripe.rotation.x = -Math.PI / 2;
+      stripe.position.set(x, 0.01, 14);
+      scene.add(stripe);
+    }
+
+    // =========================================================================
+    // 2. CACHÉ DE GEOMETRÍAS Y MATERIALES REUTILIZABLES
+    // =========================================================================
+    const BOX_CACHE = new Map();
+    function getBoxGeo(w, h, d) {
+      const key = `${w.toFixed(3)}_${h.toFixed(3)}_${d.toFixed(3)}`;
+      if (!BOX_CACHE.has(key)) BOX_CACHE.set(key, new THREE.BoxGeometry(w, h, d));
+      return BOX_CACHE.get(key);
+    }
+
+    function addBox(g, w, h, d, m, x, y, z, cast = true) {
+      const o = new THREE.Mesh(getBoxGeo(w, h, d), m);
+      o.position.set(x, y, z);
+      o.castShadow = cast;
+      o.receiveShadow = true;
+      g.add(o);
+      return o;
+    }
+
+    const mt = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0.45, ...o });
+
+    function createTileFloorTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      for (let i = 0; i <= 512; i += 64) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 512); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(512, i); ctx.stroke();
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(LAYOUT.W / 2, LAYOUT.D / 2);
+      return t;
+    }
+
+    function createCorrugatedRoofTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(0, 0, 128, 128);
+      for (let x = 0; x < 128; x += 16) {
+        ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x, 0, 8, 128);
+        ctx.fillStyle = '#64748b'; ctx.fillRect(x + 8, 0, 8, 128);
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(8, 22);
+      return t;
+    }
+
+    function createFacadeSignTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 1024, 256);
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      [[50, 45], [170, 45], [130, 115], [90, 115], [65, 210], [35, 210]].forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.fill();
+      ctx.fillStyle = '#1e293b';
+      ctx.font = 'bold 74px Arial, sans-serif';
+      ctx.fillText('PRINCIPAL MOTORS', 205, 115);
+      ctx.fillStyle = '#64748b';
+      ctx.font = 'bold 30px Arial, sans-serif';
+      ctx.fillText('SERVICIO INTEGRAL AUTOMOTRIZ', 210, 168);
+      ctx.fillStyle = '#0284c7';
+      ctx.font = 'bold 42px Arial, sans-serif';
+      ctx.fillText('17-42', 880, 130);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    }
+
+    function createSteelPlateFloorTexture() {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 1024;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 1024, 1024);
+      grad.addColorStop(0, '#2f4650');
+      grad.addColorStop(1, '#3a4f58');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 1024);
+      ctx.strokeStyle = '#1b262c';
+      ctx.lineWidth = 6;
+      for (let y = 0; y <= 1024; y += 256) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1024, y); ctx.stroke();
+      }
+      for (let x = 0; x <= 1024; x += 512) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1024); ctx.stroke();
+      }
+      ctx.fillStyle = '#64748b';
+      for (let y = 16; y < 1024; y += 256) {
+        for (let x = 16; x < 1024; x += 512) {
+          ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + 480, y, 4, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+      ctx.beginPath(); ctx.ellipse(380, 400, 80, 45, 0.4, 0, Math.PI * 2); ctx.fill();
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      return t;
+    }
+
+    function createRampChevronTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(0, 0, 256, 256);
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 14;
+      for (let y = -64; y < 320; y += 48) {
+        ctx.beginPath();
+        ctx.moveTo(30, y);
+        ctx.lineTo(128, y + 36);
+        ctx.lineTo(226, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(225, 0); ctx.lineTo(225, 256);
+      ctx.stroke();
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(1, 8);
+      return t;
+    }
+
+    function createMeshCageTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 128, 128);
+      ctx.strokeStyle = '#cbd5e1';
+      ctx.lineWidth = 3;
+      for (let i = -128; i < 256; i += 32) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 128, 128); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(i + 128, 0); ctx.lineTo(i, 128); ctx.stroke();
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(8, 8);
+      return t;
+    }
+
+    function createEvacuationSignTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#15803d';
+      ctx.fillRect(0, 0, 512, 256);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 44px Arial, sans-serif';
+      ctx.fillText('RUTA DE', 40, 100);
+      ctx.fillText('EVACUACIÓN', 40, 160);
+      ctx.beginPath();
+      ctx.moveTo(370, 70); ctx.lineTo(470, 130); ctx.lineTo(370, 190); ctx.lineTo(370, 150);
+      ctx.lineTo(310, 150); ctx.lineTo(310, 110); ctx.lineTo(370, 110); ctx.closePath();
+      ctx.fill();
+      const t = new THREE.CanvasTexture(c);
+      return t;
+    }
+
+    const MAT = {
+      wall: mt(0xf8fafc, { roughness: 0.8, metalness: 0.02 }),
+      wallZocalo: mt(0x475569, { roughness: 0.75 }),
+      stripeDark: mt(0x1e3a8a, { roughness: 0.4 }),
+      floor: new THREE.MeshStandardMaterial({ map: createTileFloorTexture(), roughness: 0.35, metalness: 0.15 }),
+      roofCorrugated: new THREE.MeshStandardMaterial({ map: createCorrugatedRoofTexture(), roughness: 0.65, metalness: 0.5 }),
+      floorSteel: new THREE.MeshStandardMaterial({ map: createSteelPlateFloorTexture(), roughness: 0.4, metalness: 0.6 }),
+      rampFloor: new THREE.MeshStandardMaterial({ map: createRampChevronTexture(), roughness: 0.8 }),
+      conc: mt(0x64748b, { roughness: 0.85 }),
+      facadeGraphite: mt(0x1e293b, { roughness: 0.7, metalness: 0.2 }),
+      steel: mt(0xcfd5db, { metalness: 0.85, roughness: 0.25 }),
+      wood: mt(0xb45309, { roughness: 0.65 }),
+      lightWood: mt(0xd97706, { roughness: 0.7 }),
+      orange: mt(0xf97316, { roughness: 0.4 }),
+      redLift: mt(0xdc2626, { roughness: 0.35, metalness: 0.4 }),
+      blueLift: mt(0x2563eb, { roughness: 0.35, metalness: 0.4 }),
+      yellow: mt(0xeab308, { roughness: 0.4 }),
+      white: mt(0xffffff, { roughness: 0.5 }),
+      black: mt(0x0f172a, { roughness: 0.7 }),
+      glass: new THREE.MeshPhysicalMaterial({ color: 0x93c5fd, transmission: 0.85, opacity: 0.9, transparent: true, roughness: 0.08, ior: 1.5 }),
+      meshCage: new THREE.MeshStandardMaterial({ map: createMeshCageTexture(), transparent: true, alphaTest: 0.3, roughness: 0.5, metalness: 0.7 }),
+      evacSign: new THREE.MeshStandardMaterial({ map: createEvacuationSignTexture(), emissive: 0x15803d, emissiveIntensity: 0.45 }),
+      drainGrate: mt(0x334155, { metalness: 0.85, roughness: 0.3 }),
+      whiteTile: mt(0xf1f5f9, { roughness: 0.25, metalness: 0.1 })
+    };
+
+    function addCylinderBar(g, a, b, r, m) {
+      const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+      const len = A.distanceTo(B);
+      if (!len) return;
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 12), m);
+      c.position.copy(A).add(B).multiplyScalar(0.5);
+      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize());
+      c.castShadow = true;
+      g.add(c);
+      return c;
+    }
+
+    function addRailing(g, [x1, z1], [x2, z2], y = 0, h = 1.05) {
+      const dist = Math.hypot(x2 - x1, z2 - z1);
+      const posts = Math.max(1, Math.round(dist / 1.3));
+      for (let i = 0; i <= posts; i++) {
+        const x = x1 + (x2 - x1) * (i / posts);
+        const z = z1 + (z2 - z1) * (i / posts);
+        addCylinderBar(g, [x, y, z], [x, y + h, z], 0.025, MAT.steel);
+      }
+      addCylinderBar(g, [x1, y + h, z1], [x2, y + h, z2], 0.035, MAT.steel);
+      addCylinderBar(g, [x1, y + h * 0.5, z1], [x2, y + h * 0.5, z2], 0.02, MAT.steel);
+    }
+
+    // =========================================================================
+    // 3. GENERADOR DE VEHÍCULOS DETALLADOS CON PLACAS COLOMBIANAS
+    // =========================================================================
+    const TI_MAT = mt(0x1a1a1a, { roughness: 0.95, metalness: 0.05 });
+    const RM_MAT = mt(0xd1d5db, { metalness: 0.92, roughness: 0.15 });
+    const GL_MAT = new THREE.MeshPhysicalMaterial({ color: 0x0f172a, roughness: 0.05, metalness: 0.1, transmission: 0.65, transparent: true, opacity: 0.85 });
+    const LW_MAT = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfffbeb, emissiveIntensity: 1.5 });
+    const LR_MAT = new THREE.MeshStandardMaterial({ color: 0xdc2626, emissive: 0xef4444, emissiveIntensity: 1.2 });
+    const DK_MAT = mt(0x111827, { roughness: 0.8 });
+
+    function createYellowPlateTexture(plateNumber = 'IRV 814') {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(0, 0, 256, 128);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(4, 4, 248, 120);
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 48px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(plateNumber, 128, 75);
+      ctx.font = 'bold 20px Arial, sans-serif';
+      ctx.fillText('COLOMBIA', 128, 110);
+      const t = new THREE.CanvasTexture(c);
+      return t;
+    }
+
+    const CAR_SPECS = {
+      sedan: {
+        L: 4.5, W: 1.85, r: 0.34,
+        b: [[-2.25, 0.3], [2.25, 0.3], [2.25, 0.74], [1.85, 0.92], [1.1, 0.98], [-1.9, 0.98], [-2.25, 0.84]],
+        c: [[-1.35, 0.98], [-0.95, 1.48], [0.6, 1.48], [1.1, 0.98]]
+      },
+      suv: {
+        L: 4.7, W: 1.95, r: 0.38,
+        b: [[-2.35, 0.38], [2.35, 0.38], [2.35, 0.88], [1.9, 1.05], [1.0, 1.1], [-2.35, 1.1]],
+        c: [[-2.2, 1.1], [-2.2, 1.8], [0.55, 1.8], [1.15, 1.1]]
+      },
+      pickup: {
+        L: 5.4, W: 2.05, r: 0.42,
+        b: [[-2.7, 0.45], [2.7, 0.45], [2.7, 1.05], [2.2, 1.28], [0.7, 1.28], [-2.7, 1.28]],
+        c: [[-0.4, 1.28], [0, 1.98], [1.3, 1.98], [1.75, 1.28]]
+      },
+      convertible: {
+        L: 4.6, W: 1.86, r: 0.34,
+        b: [[-2.3, 0.3], [2.3, 0.3], [2.3, 0.72], [1.8, 0.9], [1.0, 0.94], [-1.9, 0.94], [-2.3, 0.82]],
+        c: [[-0.8, 0.94], [-0.5, 1.22], [0.4, 1.22], [0.8, 0.94]]
+      }
+    };
+
+    function extrudeShape(pts, d, m) {
+      const s = new THREE.Shape();
+      pts.forEach(([x, y], i) => (i ? s.lineTo(x, y) : s.moveTo(x, y)));
+      const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2 });
+      g.translate(0, 0, -d / 2);
+      return new THREE.Mesh(g, m);
+    }
+
+    function createCar(kind = 'sedan', colorHex = 0x2563eb, options = {}) {
+      const p = CAR_SPECS[kind] || CAR_SPECS.sedan;
+      const g = new THREE.Group();
+      g.userData.isCar = true;
+      g.userData.carHalfL = p.L / 2;
+      g.userData.carHalfW = p.W / 2;
+      const bodyMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.28, metalness: 0.65 });
+      const cabinWidth = p.W - 0.2;
+
+      g.add(extrudeShape(p.b, p.W, bodyMat));
+
+      if (kind === 'convertible') {
+        // capota de lona negra cerrada + franjas de vidrio laterales y parabrisas
+        g.add(extrudeShape(p.c, cabinWidth, mt(0x111827, { roughness: 0.95, metalness: 0.05 })));
+        g.add(extrudeShape([[-0.55, 0.98], [-0.38, 1.13], [0.3, 1.13], [0.52, 0.98]], cabinWidth + 0.04, GL_MAT));
+      } else {
+        g.add(extrudeShape(p.c, cabinWidth, GL_MAT));
+        const [a, b] = [p.c[1], p.c[2]];
+        addBox(g, b[0] - a[0] + 0.12, 0.06, cabinWidth + 0.08, bodyMat, (a[0] + b[0]) / 2, a[1] + 0.03, 0);
+      }
+
+      if (options.hoodOpen) {
+        // capó articulado en la base del parabrisas, levantado hacia arriba
+        const hx = p.b[4][0], hy = p.b[4][1] + 0.02, hLen = p.b[2][0] - hx - 0.08;
+        const hinge = new THREE.Group();
+        hinge.position.set(hx, hy, 0);
+        hinge.rotation.z = 1.05;
+        addBox(hinge, hLen, 0.04, p.W - 0.12, bodyMat, hLen / 2, 0, 0);
+        g.add(hinge);
+        const eng = hx + hLen / 2;
+        addBox(g, hLen * 0.8, 0.14, p.W - 0.5, mt(0x334155, { metalness: 0.8 }), eng, hy + 0.04, 0);
+        addBox(g, 0.35, 0.1, 0.5, mt(0xdc2626), eng, hy + 0.16, 0);
+      }
+
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const x = sx * p.L * 0.31;
+          const z = sz * (p.W / 2 - 0.12);
+          const tire = new THREE.Mesh(new THREE.CylinderGeometry(p.r, p.r, 0.26, 18), TI_MAT);
+          tire.rotation.x = Math.PI / 2;
+          tire.position.set(x, p.r, z);
+          tire.castShadow = true;
+          g.add(tire);
+          const rim = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 0.62, p.r * 0.62, 0.28, 12), RM_MAT);
+          rim.rotation.x = Math.PI / 2;
+          rim.position.set(x, p.r, z);
+          g.add(rim);
+        }
+      }
+
+      const ly = p.b[2][1] - 0.12;
+      for (const sz of [-1, 1]) {
+        addBox(g, 0.06, 0.14, 0.36, LW_MAT, p.L / 2 + 0.02, ly, sz * (p.W / 2 - 0.3));
+        addBox(g, 0.06, 0.14, 0.36, LR_MAT, -p.L / 2 - 0.02, ly, sz * (p.W / 2 - 0.3));
+      }
+      addBox(g, 0.04, 0.18, 0.8, DK_MAT, p.L / 2 + 0.03, 0.55, 0);
+
+      const plateMat = new THREE.MeshStandardMaterial({
+        map: createYellowPlateTexture(options.plate || 'PMO 101'),
+        roughness: 0.3
+      });
+      const rearPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.2), plateMat);
+      rearPlate.rotation.y = -Math.PI / 2;
+      rearPlate.position.set(-p.L / 2 - 0.03, 0.58, 0);
+      g.add(rearPlate);
+
+      const frontPlate = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.2), plateMat);
+      frontPlate.rotation.y = Math.PI / 2;
+      frontPlate.position.set(p.L / 2 + 0.04, 0.45, 0);
+      g.add(frontPlate);
+
+      if (options.seVende) {
+        const signSale = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.55, 0.35),
+          new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        signSale.position.set(0.9, 1.25, 0.2);
+        signSale.rotation.y = Math.PI / 2;
+        signSale.rotation.z = -0.3;
+        g.add(signSale);
+      }
+
+      g.traverse(o => {
+        if (o.isMesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
+        }
+      });
+      return g;
+    }
+
+    // =========================================================================
+    // 4. CONSTRUCCIÓN INTEGRAL DEL GEMELO DIGITAL (100% ESPECIFICACIÓN)
+    // =========================================================================
+    const hydraulicLifts = [];
+    const rotatingTools = [];
+
+    function buildDigitalTwin() {
+      const root = new THREE.Group();
+      const roof = new THREE.Group();
+      const shell = new THREE.Group();
+      const floorLosaGroup = new THREE.Group();
+      root.add(roof, shell, floorLosaGroup);
+
+      // --- 4.1 Pisos y Losas ---
+      addBox(floorLosaGroup, LAYOUT.W, 0.35, 2.5, MAT.floor, 0, -0.175, -1.25);
+      addBox(floorLosaGroup, 6.5, 0.35, 11.0, MAT.floor, 1.75, -0.175, -8.0);
+      addBox(floorLosaGroup, LAYOUT.W, 0.35, LAYOUT.D - 13.5, MAT.floor, 0, -0.175, -13.5 - (LAYOUT.D - 13.5) / 2);
+      addBox(floorLosaGroup, 0.22, 0.02, LAYOUT.D - 16, MAT.drainGrate, 0, 0.005, -23.5);
+      addBox(root, LAYOUT.W, 0.35, LAYOUT.D - 13.5, MAT.floor, 0, LAYOUT.BASE - 0.175, -13.5 - (LAYOUT.D - 13.5) / 2);
+
+      // --- 4.2 Muros Perimetrales ---
+      for (const sx of [-1, 1]) {
+        addBox(shell, LAYOUT.WALL_THICK, LAYOUT.H, LAYOUT.D, MAT.wall, sx * LAYOUT.WALL_CENTER_X, LAYOUT.H / 2, -LAYOUT.D / 2);
+        addBox(shell, 0.02, 1.0, LAYOUT.D, MAT.wallZocalo, sx * 5.0, 0.5, -LAYOUT.D / 2);
+        addBox(shell, 0.03, 0.35, LAYOUT.D, MAT.stripeDark, sx * 5.0, 1.18, -LAYOUT.D / 2);
+        addBox(root, LAYOUT.WALL_THICK, -LAYOUT.BASE, LAYOUT.D, MAT.wall, sx * LAYOUT.WALL_CENTER_X, LAYOUT.BASE / 2, -LAYOUT.D / 2);
+        addBox(root, 0.02, 0.9, LAYOUT.D, MAT.wallZocalo, sx * 5.0, LAYOUT.BASE + 0.45, -LAYOUT.D / 2);
+        addBox(root, 0.03, 0.32, LAYOUT.D, mt(0x2563eb), sx * 5.0, LAYOUT.BASE + 1.15, -LAYOUT.D / 2);
+      }
+      addBox(shell, LAYOUT.W + 0.56, LAYOUT.H, LAYOUT.WALL_THICK, MAT.wall, 0, LAYOUT.H / 2, LAYOUT.WALL_BACK_Z - 0.14);
+      addBox(root, LAYOUT.W + 0.56, -LAYOUT.BASE, LAYOUT.WALL_THICK, MAT.wall, 0, LAYOUT.BASE / 2, LAYOUT.WALL_BACK_Z - 0.14);
+      addBox(shell, 2.4, 3.2, 0.04, mt(0x6b21a8, { roughness: 0.5 }), -3.2, 2.8, LAYOUT.WALL_BACK_Z + 0.04);
+
+      // --- 4.3 Fachada ---
+      const parapetHeight = 8.2;
+      addBox(shell, LAYOUT.W, parapetHeight, 0.22, MAT.facadeGraphite, 0, parapetHeight / 2, 0);
+      for (const jx of [-2.5, 0, 2.5]) {
+        addBox(shell, 0.04, parapetHeight, 0.24, mt(0x0f172a), jx, parapetHeight / 2, 0.01);
+      }
+
+      const facadeSignMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(6.6, 2.1),
+        new THREE.MeshStandardMaterial({
+          map: createFacadeSignTexture(),
+          roughness: 0.35,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.08
+        })
+      );
+      facadeSignMesh.position.set(0.3, 5.6, 0.13);
+      shell.add(facadeSignMesh);
+
+      const signCamera = new THREE.Group();
+      signCamera.position.set(-3.4, 6.2, 0.3);
+      addBox(signCamera, 0.16, 0.12, 0.24, mt(0xffffff), 0, 0, 0);
+      addBox(signCamera, 0.04, 0.3, 0.04, mt(0x475569), 0, -0.15, -0.08);
+      shell.add(signCamera);
+
+      addBox(shell, 4.8, 0.4, 0.25, mt(0x0f172a), -2.0, 3.8, 0.02);
+      addBox(shell, 0.08, 3.5, 0.75, mt(0x64748b, { metalness: 0.7 }), -4.3, 1.75, -0.4).rotation.y = 0.45;
+      addBox(shell, 0.08, 3.5, 0.75, mt(0x64748b, { metalness: 0.7 }), -4.1, 1.75, -0.9).rotation.y = -0.35;
+
+      const openGateDoor = addBox(shell, 0.08, 3.5, 1.4, mt(0x64748b, { metalness: 0.7 }), 0.2, 1.75, -0.6);
+      openGateDoor.rotation.y = THREE.MathUtils.degToRad(70);
+
+
+      for (const sx of [1.6, 3.7]) {
+        addBox(shell, 1.85, 0.42, 0.12, mt(0x38bdf8), sx, 3.35, 0.1);
+        addBox(shell, 1.85, 2.2, 0.08, mt(0xcfd5db, { metalness: 0.5, roughness: 0.4 }), sx, 1.95, 0.08);
+        addBox(shell, 1.85, 0.75, 0.06, mt(0x1e293b, { roughness: 0.2 }), sx, 0.45, 0.09);
+      }
+
+      const boschOutSign = addBox(shell, 0.06, 0.6, 0.8, mt(0xffffff), 4.88, 3.2, 0.45);
+      addBox(boschOutSign, 0.08, 0.12, 0.6, mt(0xdc2626), 0, 0.15, 0);
+
+      const tecniracer = new THREE.Group();
+      tecniracer.position.set(-11.5, 0, -LAYOUT.D / 2);
+      addBox(tecniracer, 12, 6.5, LAYOUT.D, mt(0x1e293b), 0, 3.25, 0);
+      // Techo curvo (bóveda) de Tecniracer: eje a lo largo de Z (fondo), solo la mitad superior,
+      // achatado para que sea una bóveda baja y NO invada el taller de Principal Motors.
+      const curvedMat = mt(0x334155);
+      curvedMat.side = THREE.DoubleSide;
+      const curvedRoof = new THREE.Mesh(new THREE.CylinderGeometry(6.0, 6.0, LAYOUT.D, 24, 1, true, Math.PI / 2, Math.PI), curvedMat);
+      curvedRoof.rotation.x = Math.PI / 2;
+      curvedRoof.scale.z = 0.3;
+      curvedRoof.position.set(0, 6.5, 0);
+      tecniracer.add(curvedRoof);
+      addBox(tecniracer, 6.5, 1.4, 0.15, mt(0xffffff), 0, 5.5, LAYOUT.D / 2 + 0.08);
+      shell.add(tecniracer);
+
+      const autoRueda = new THREE.Group();
+      autoRueda.position.set(11.5, 0, -LAYOUT.D / 2);
+      addBox(autoRueda, 12, 6.8, LAYOUT.D, mt(0x334155), 0, 3.4, 0);
+      addBox(autoRueda, 7.5, 1.6, 0.15, mt(0xffffff), 0, 5.6, LAYOUT.D / 2 + 0.08);
+      shell.add(autoRueda);
+
+      const necrValla = new THREE.Group();
+      necrValla.position.set(-3.6, 0, 7.2);
+      addBox(necrValla, 1.8, 1.1, 0.08, mt(0x1e3a8a), 0, 0.55, 0);
+      addBox(necrValla, 0.1, 0.9, 0.9, mt(0x0f172a), -0.85, 0.45, 0);
+      addBox(necrValla, 0.1, 0.9, 0.9, mt(0x0f172a), 0.85, 0.45, 0);
+      root.add(necrValla);
+
+      for (const cy of [7.2, 7.8]) {
+        addCylinderBar(shell, [-18, cy, 1.5], [18, cy - 0.3, 1.5], 0.012, mt(0x0f172a));
+        addCylinderBar(shell, [-18, cy + 0.4, 3.5], [18, cy + 0.1, 3.5], 0.012, mt(0x0f172a));
+      }
+
+      for (let m = 0; m < 3; m++) {
+        const moto = new THREE.Group();
+        moto.position.set(1.4 + m * 1.25, 0, 4.8);
+        addBox(moto, 0.4, 0.9, 1.8, mt(0x0f172a, { metalness: 0.8 }), 0, 0.45, 0);
+        addBox(moto, 0.35, 0.35, 0.45, mt(0x2563eb), 0, 0.7, -0.2);
+        root.add(moto);
+      }
+
+
+      // --- 4.4 Techo a Dos Aguas ---
+      const roofAngle = Math.atan((LAYOUT.RIDGE - LAYOUT.H) / 5);
+      const slopeLen = Math.hypot(5, LAYOUT.RIDGE - LAYOUT.H);
+      for (const sx of [-1, 1]) {
+        const roofWing = new THREE.Group();
+        roofWing.position.set(sx * 2.5, (LAYOUT.H + LAYOUT.RIDGE) / 2, -LAYOUT.D / 2);
+        roofWing.rotation.z = sx < 0 ? roofAngle : -roofAngle;
+        addBox(roofWing, slopeLen, 0.06, LAYOUT.D + 0.3, MAT.roofCorrugated, 0, 0, 0);
+        addBox(
+          roofWing,
+          1.2,
+          0.04,
+          LAYOUT.D - 2,
+          new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, transmission: 0.85, roughness: 0.2, transparent: true, opacity: 0.65 }),
+          sx < 0 ? slopeLen / 2 - 1.1 : -(slopeLen / 2 - 1.1),
+          0.05,
+          0
+        );
+        roof.add(roofWing);
+      }
+
+      for (let z = -2; z > -LAYOUT.D; z -= 5) {
+        addBox(roof, LAYOUT.W, 0.2, 0.15, MAT.steel, 0, LAYOUT.H - 0.2, z);
+        addCylinderBar(roof, [-5, LAYOUT.H, z], [0, LAYOUT.RIDGE - 0.1, z], 0.06, MAT.steel);
+        addCylinderBar(roof, [5, LAYOUT.H, z], [0, LAYOUT.RIDGE - 0.1, z], 0.06, MAT.steel);
+      }
+
+      for (let z = -4; z > -LAYOUT.D; z -= 6.5) {
+        const bell = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.3, 14), mt(0x1e293b, { metalness: 0.8 }));
+        bell.position.set(0, LAYOUT.H - 0.8, z);
+        roof.add(bell);
+      }
+
+      addBox(roof, 2.8, 0.08, 7.2, MAT.roofCorrugated, 3.6, LAYOUT.FL + 2.7, -4.6);
+
+      for (let z = -5; z > -LAYOUT.D; z -= 9) {
+        const pLight = new THREE.PointLight(0xffffff, 55, 14, 1.8);
+        pLight.position.set(0, LAYOUT.H - 1.0, z);
+        lightsGroup.add(pLight);
+      }
+
+      // --- 4.5 Rampa Vehicular ---
+      const rampAngle = Math.atan(-LAYOUT.BASE / 11);
+      const rampLen = Math.hypot(11, -LAYOUT.BASE);
+      const ramp = new THREE.Group();
+      ramp.position.set(LAYOUT.RAMP_CENTER_X, LAYOUT.BASE / 2 - 0.15, -8.0);
+      ramp.rotation.x = -rampAngle;
+      root.add(ramp);
+      addBox(ramp, LAYOUT.RAMP_WIDTH, 0.32, rampLen, MAT.rampFloor, 0, 0, 0);
+
+      const rampWall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, -LAYOUT.BASE + 0.35, 11),
+        MAT.conc
+      );
+      rampWall.position.set(-1.4, LAYOUT.BASE / 2, -8.0);
+      root.add(rampWall);
+      addRailing(root, [-1.4, -2.5], [-1.4, -13.5], 0);
+
+      // (Ford Explorer eliminado de la rampa: la rampa queda despejada)
+
+      // --- 4.6 Taller Especializado Subterráneo ---
+      const espGroup = new THREE.Group();
+      const espXCenter = 1.78;
+      const espWidth = 6.16;
+      const espDepth = 10.3;
+      const espZCenter = -8.15;
+
+      espGroup.position.set(0, LAYOUT.BASE, 0);
+      root.add(espGroup);
+
+      const steelFloorMesh = new THREE.Mesh(new THREE.PlaneGeometry(espWidth, espDepth), MAT.floorSteel);
+      steelFloorMesh.rotation.x = -Math.PI / 2;
+      steelFloorMesh.position.set(espXCenter, 0.012, espZCenter);
+      steelFloorMesh.receiveShadow = true;
+      espGroup.add(steelFloorMesh);
+
+      addBox(espGroup, 0.22, 1.2, espDepth, MAT.whiteTile, -1.3, 0.6, espZCenter);
+      addBox(espGroup, 0.22, 1.85, espDepth, MAT.wall, -1.3, 2.12, espZCenter);
+      addBox(espGroup, espWidth, 3.05, 0.22, MAT.wall, espXCenter, 1.52, -3.0);
+
+      const leftWallWidth = 1.88;
+      addBox(espGroup, leftWallWidth, 3.05, 0.22, MAT.wall, -1.3 + leftWallWidth / 2, 1.52, -13.3);
+      addBox(espGroup, leftWallWidth, 3.05, 0.22, MAT.wall, 4.86 - leftWallWidth / 2, 1.52, -13.3);
+      addBox(espGroup, 2.4, 0.55, 0.22, MAT.wall, espXCenter, 2.77, -13.3);
+
+      const espPortalSign = new THREE.Group();
+      espPortalSign.position.set(espXCenter, 2.3, -13.35);
+      addBox(espPortalSign, 2.2, 0.45, 0.06, mt(0x1e3a8a));
+      addBox(espPortalSign, 2.1, 0.08, 0.07, mt(0x38bdf8), 0, -0.16, 0);
+      espGroup.add(espPortalSign);
+
+      addBox(espGroup, 2.6, 0.9, 1.2, mt(0x1e293b, { roughness: 0.6 }), espXCenter, 0.45, -7.8);
+      addBox(espGroup, 0.6, 0.25, 0.35, mt(0xdc2626), espXCenter - 0.7, 0.98, -7.8);
+      addBox(espGroup, 0.45, 0.35, 0.45, mt(0x64748b, { metalness: 0.9 }), espXCenter + 0.6, 1.05, -7.8);
+
+      const drillPress = new THREE.Group();
+      drillPress.position.set(-0.7, 0, -5.5);
+      addBox(drillPress, 0.4, 2.1, 0.4, MAT.yellow, 0, 1.05, 0);
+      addBox(drillPress, 0.3, 0.4, 0.5, mt(0x0f172a), 0, 1.8, 0.1);
+      espGroup.add(drillPress);
+
+      const bluePress = new THREE.Group();
+      bluePress.position.set(espXCenter, 0, -4.2);
+      addBox(bluePress, 1.1, 2.3, 0.4, mt(0x0284c7), 0, 1.15, 0);
+      espGroup.add(bluePress);
+
+      const benchGrinder = new THREE.Group();
+      benchGrinder.position.set(4.1, 0.9, -6.5);
+      addBox(benchGrinder, 0.4, 0.3, 0.3, mt(0x334155), 0, 0.15, 0);
+      const wheel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 16), mt(0x64748b));
+      wheel1.rotation.z = Math.PI / 2;
+      wheel1.position.set(-0.25, 0.15, 0);
+      const wheel2 = wheel1.clone();
+      wheel2.position.set(0.25, 0.15, 0);
+      benchGrinder.add(wheel1, wheel2);
+      rotatingTools.push(wheel1, wheel2);
+      espGroup.add(benchGrinder);
+
+      const redArmchair = new THREE.Group();
+      redArmchair.position.set(3.8, 0, -11.0);
+      addBox(redArmchair, 0.9, 0.4, 0.8, mt(0x991b1b, { roughness: 0.9 }), 0, 0.2, 0);
+      addBox(redArmchair, 0.9, 0.45, 0.25, mt(0x991b1b, { roughness: 0.9 }), 0, 0.55, -0.3);
+      espGroup.add(redArmchair);
+
+      const drum1 = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.85, 14), mt(0x0284c7));
+      drum1.position.set(4.2, 0.42, -9.2);
+      espGroup.add(drum1);
+
+      const evacSignEsp = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.32), MAT.evacSign);
+      evacSignEsp.position.set(espXCenter, 2.1, -2.85);
+      espGroup.add(evacSignEsp);
+
+      const cctvEsp = new THREE.Group();
+      cctvEsp.position.set(-1.0, 2.7, -3.4);
+      addBox(cctvEsp, 0.15, 0.15, 0.25, mt(0xffffff));
+      espGroup.add(cctvEsp);
+
+      // --- 4.7 Sótano ---
+      LAYOUT.BASEMENT_COLS_Z.forEach(cz => {
+        const col = addBox(root, 0.5, -LAYOUT.BASE - 0.35, 0.5, MAT.conc, 0, (LAYOUT.BASE - 0.35) / 2, cz);
+        addBox(col, 0.52, 0.4, 0.52, mt(0x1e293b), 0, 0, 0);
+      });
+
+      addCylinderBar(root, [-4.6, LAYOUT.BASE + 2.7, -14], [-4.6, LAYOUT.BASE + 2.7, LAYOUT.WALL_BACK_Z + 0.5], 0.12, MAT.white);
+      addCylinderBar(root, [-4.4, LAYOUT.BASE + 2.85, -14], [-4.4, LAYOUT.BASE + 2.85, LAYOUT.WALL_BACK_Z + 0.5], 0.035, mt(0x0284c7));
+
+      const cageGroup = new THREE.Group();
+      cageGroup.position.set(3.4, LAYOUT.BASE, -22.5);
+      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, -2.4);
+      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, 2.4);
+      addBox(cageGroup, 2.8, 2.6, 0.05, MAT.meshCage, 0, 1.3, 0);
+      addBox(cageGroup, 0.05, 2.6, 4.8, MAT.meshCage, -1.4, 1.3, 0);
+      addBox(cageGroup, 0.06, 0.25, 1.2, mt(0x1e3a8a), -1.44, 2.2, 0);
+      addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, -1.1);
+      addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, 1.1);
+      root.add(cageGroup);
+
+      const mercCLA = createCar('sedan', 0xffffff, { plate: 'CLA 200' });
+      mercCLA.position.set(-2.2, LAYOUT.BASE, -18.5);
+      mercCLA.rotation.y = Math.PI / 2;
+      root.add(mercCLA);
+
+      const peugeotSUV = createCar('suv', 0x1e293b, { plate: 'PEU 300' });
+      peugeotSUV.position.set(2.2, LAYOUT.BASE, -28.5);
+      peugeotSUV.rotation.y = Math.PI / 2;
+      root.add(peugeotSUV);
+
+      const ecoSport = createCar('suv', 0xd1d5db, { plate: 'ECO 505' });
+      ecoSport.position.set(-2.2, LAYOUT.BASE, -26.5);
+      ecoSport.rotation.y = Math.PI / 2;
+      root.add(ecoSport);
+
+      const intantesMarker = new THREE.Group();
+      intantesMarker.position.set(3.5, LAYOUT.BASE, -31.5);
+      addBox(intantesMarker, 1.4, 2.0, 0.8, mt(0x38bdf8, { transparent: true, opacity: 0.65 }), 0, 1.0, 0);
+      root.add(intantesMarker);
+
+      // --- 4.8 Planta 1 ---
+      function createSpecificLift(x, y, z, colorType = 'blue', hasTopBeam = false) {
+        const liftGroup = new THREE.Group();
+        liftGroup.position.set(x, y, z);
+        const colMat = colorType === 'red' ? MAT.redLift : MAT.blueLift;
+        addBox(liftGroup, 0.26, 3.8, 0.35, colMat, -1.35, 1.9, 0);
+        addBox(liftGroup, 0.26, 3.8, 0.35, colMat, 1.35, 1.9, 0);
+        if (hasTopBeam) addBox(liftGroup, 2.96, 0.24, 0.28, colMat, 0, 3.7, 0);
+
+        const platform = new THREE.Group();
+        platform.position.y = 0.1;
+        addBox(platform, 2.6, 0.08, 4.4, mt(0x334155), 0, 0.04, 0);
+        addBox(platform, 2.8, 0.06, 0.22, MAT.steel, 0, 0.09, -1.3);
+        addBox(platform, 2.8, 0.06, 0.22, MAT.steel, 0, 0.09, 1.3);
+        liftGroup.add(platform);
+
+        hydraulicLifts.push({ platform, targetY: 1.45, currentY: 0.1 });
+        root.add(liftGroup);
+        return { liftGroup, platform };
+      }
+
+      const liftLeft = createSpecificLift(-2.55, 0, -31.0, 'blue', false);
+      const rangerSilver = createCar('pickup', 0xd1d5db, { plate: 'COL 891' });
+      rangerSilver.position.set(0, 0.1, 0);
+      rangerSilver.rotation.y = Math.PI / 2;
+      liftLeft.platform.add(rangerSilver);
+
+      const liftRight = createSpecificLift(2.55, 0, -31.0, 'red', true);
+      const hatchGray = createCar('sedan', 0x94a3b8, { plate: 'DZO 412' });
+      hatchGray.position.set(0, 0.1, 0);
+      hatchGray.rotation.y = Math.PI / 2;
+      liftRight.platform.add(hatchGray);
+
+      const mercConvertible = createCar('convertible', 0xffffff, { hoodOpen: true, plate: 'IRV 814' });
+      mercConvertible.position.set(-2.2, 0, -16.5);
+      mercConvertible.rotation.y = Math.PI / 2;
+      root.add(mercConvertible);
+
+      const raptorWhite = createCar('pickup', 0xf8fafc, { plate: 'RAP 015' });
+      raptorWhite.position.set(-2.2, 0, -23.0);
+      raptorWhite.rotation.y = Math.PI / 2;
+      root.add(raptorWhite);
+
+      const kangooVan = createCar('sedan', 0xffffff, { plate: 'EOP 697' });
+      kangooVan.position.set(2.2, 0, -21.3);
+      kangooVan.rotation.y = Math.PI / 2;
+      root.add(kangooVan);
+
+      for (const z of [-18.5, -24.5, -27.8]) {
+        for (const sx of [-1, 1]) {
+          const toolCart = new THREE.Group();
+          toolCart.position.set(sx * 3.8, 0, z);
+          addBox(toolCart, 0.55, 0.9, 0.8, mt(0x0284c7), 0, 0.45, 0);
+          addBox(toolCart, 0.58, 0.06, 0.84, MAT.black, 0, 0.92, 0);
+          root.add(toolCart);
+        }
+      }
+
+      // --- 4.9 Recepción & Sala de Espera ---
+      // Volumen cerrado de habitaciones (x 2.2 → 5.0, z -1.0 → -14.4), bajo la losa de Gerencia.
+      // Fachada hacia la nave, de adelante hacia atrás:
+      //   puerta (Sala de espera) · ventana (Recepción) · puerta de reja (Bodega) · pared de la escalera
+      const RH = LAYOUT.FL - 0.26;                       // altura hasta la losa
+      const wallX = (za, zb, y0, y1, m = MAT.wall) =>
+        addBox(root, 0.15, y1 - y0, Math.abs(zb - za), m, 2.2, (y0 + y1) / 2, (za + zb) / 2);
+      wallX(-1.0, -2.3, 2.2, RH);                        // dintel puerta Sala de espera
+      wallX(-2.3, -2.9, 0, RH);
+      wallX(-2.9, -4.5, 0, 0.95);                        // ventana Recepción: antepecho
+      addBox(root, 0.04, 1.2, 1.6, MAT.glass, 2.2, 1.55, -3.7);
+      wallX(-2.9, -4.5, 2.15, RH);
+      addBox(root, 0.35, 0.06, 1.7, mt(0xffffff), 2.2, 0.98, -3.7);
+      wallX(-4.5, -8.3, 0, RH);
+      wallX(-8.3, -9.4, 2.2, RH);                        // dintel puerta de reja (Bodega)
+      addBox(root, 2.8, RH, 0.15, MAT.wall, 3.6, RH / 2, -1.0);      // cierre frontal
+      addBox(root, 2.8, RH, 0.15, MAT.wall, 3.6, RH / 2, -5.6);      // tabique Recepción | Bodega
+      addBox(root, 2.8, RH, 0.15, MAT.wall, 3.6, RH / 2, -9.5);      // cara trasera (despejada) del volumen
+
+      // puerta de reja de la Bodega (cerrada con candado) y su cartel
+      const bodegaZ = -8.85;
+      addBox(root, 0.05, 2.2, 1.1, MAT.meshCage, 2.22, 1.1, bodegaZ);
+      addBox(root, 0.06, 2.2, 0.05, MAT.white, 2.22, 1.1, bodegaZ - 0.55);
+      addBox(root, 0.06, 2.2, 0.05, MAT.white, 2.22, 1.1, bodegaZ + 0.55);
+      addBox(root, 0.06, 0.05, 1.15, MAT.white, 2.22, 2.2, bodegaZ);
+      addBox(root, 0.08, 0.1, 0.06, mt(0xd4a017, { metalness: 0.8 }), 2.26, 1.0, bodegaZ + 0.4);   // candado
+      addBox(root, 0.03, 0.45, 0.32, mt(0xffffff), 2.15, 1.55, bodegaZ - 0.75);
+      addBox(root, 0.035, 0.3, 0.2, mt(0xdc2626), 2.14, 1.55, bodegaZ - 0.75);
+      const evacBodega = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.42), MAT.evacSign);
+      evacBodega.position.set(2.12, 2.62, bodegaZ);
+      evacBodega.rotation.y = -Math.PI / 2;
+      root.add(evacBodega);
+
+      // estantería interior de la Bodega (estantes naranja con cajas y galones)
+      function addRack(cx, cz, alongZ, len) {
+        const rk = new THREE.Group();
+        rk.position.set(cx, 0, cz);
+        if (!alongZ) rk.rotation.y = Math.PI / 2;
+        for (const px of [-0.3, 0.3]) for (const pz of [-len / 2, len / 2]) addBox(rk, 0.05, 2.3, 0.05, MAT.orange, px, 1.15, pz);
+        const palette = [0xc2a27a, 0x1e3a8a, 0xdc2626, 0x111827, 0xe5e7eb];
+        for (let lv = 0; lv < 4; lv++) {
+          const y = 0.3 + lv * 0.62;
+          addBox(rk, 0.62, 0.04, len, MAT.orange, 0, y, 0);
+          for (let i = 0; i < Math.floor(len / 0.62); i++) {
+            const c = palette[(lv * 2 + i) % palette.length];
+            const bz = -len / 2 + 0.38 + i * 0.62;
+            addBox(rk, 0.42, 0.3, 0.45, mt(c, { roughness: 0.8 }), 0, y + 0.17, bz);
+          }
+        }
+        root.add(rk);
+      }
+      for (const rz of [-6.6, -8.5]) addRack(4.55, rz, true, 1.7);
+      addRack(3.3, -9.15, false, 1.4);
+      addBox(root, 0.6, 0.5, 0.5, mt(0xc2a27a), 2.7, 0.25, -6.6);
+      addBox(root, 0.6, 0.5, 0.5, mt(0xc2a27a), 2.7, 0.75, -6.6);
+
+      addBox(root, 0.04, 0.22, 0.8, mt(0x1e3a8a), 2.12, 2.45, -1.65);
+      addBox(root, 0.04, 0.18, 0.3, mt(0x15803d), 2.12, 1.6, -5.0);
+
+      const receptionDesk = new THREE.Group();
+      receptionDesk.position.set(3.4, 0, -2.6);
+      addBox(receptionDesk, 1.4, 0.95, 0.7, mt(0x475569), 0, 0.47, 0);
+      addBox(receptionDesk, 1.45, 0.06, 0.75, MAT.white, 0, 0.97, 0);
+      addBox(receptionDesk, 0.5, 0.35, 0.04, MAT.black, 0, 1.2, -0.15);
+      addBox(receptionDesk, 0.35, 0.2, 0.3, mt(0xffffff), 0.45, 1.08, 0);
+      root.add(receptionDesk);
+
+      const waitingSofa = new THREE.Group();
+      waitingSofa.position.set(4.3, 0, -4.5);
+      addBox(waitingSofa, 0.8, 0.45, 1.8, mt(0x1e3a8a), 0, 0.25, 0);
+      addBox(waitingSofa, 0.25, 0.5, 1.8, mt(0x1e3a8a), 0.3, 0.65, 0);
+      root.add(waitingSofa);
+
+      addBox(root, 0.6, 0.4, 0.9, MAT.lightWood, 3.4, 0.2, -4.5);
+      addBox(root, 0.04, 0.8, 1.4, mt(0xdc2626), 4.96, 1.8, -4.2);
+      addBox(root, 0.04, 0.4, 1.2, mt(0x0284c7), 4.96, 2.3, -2.4);
+      addBox(root, 0.45, 1.8, 0.9, mt(0x0284c7), 4.6, 0.9, -1.5);
+      addBox(root, 0.08, 1.9, 0.7, mt(0x0f172a), 2.5, 0.95, -1.3);
+
+      for (const [idx, col] of [[0, 0x15803d], [1, 0x0f172a], [2, 0xffffff]].entries()) {
+        const can = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.5, 14), mt(col));
+        can.position.set(2.6 + idx * 0.32, 0.25, -5.25);
+        root.add(can);
+      }
+
+      for (const [px, pz] of [[2.7, -1.6], [4.6, -5.0]]) {
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.18, 0.45, 14), mt(0xd97706));
+        pot.position.set(px, 0.22, pz);
+        const leaf = new THREE.Mesh(new THREE.DodecahedronGeometry(0.32), mt(0x15803d, { roughness: 0.9 }));
+        leaf.position.set(px, 0.6, pz);
+        root.add(pot, leaf);
+      }
+
+
+      // --- 4.10 Escalera & Gerencia P2 ---
+      // Losa de Gerencia (z -1 → -9.5) y pared trasera con la PUERTA DE ACCESO; la escalera va pegada
+      // a esa cara trasera, paralela a ella, y sube hasta un descanso junto a la puerta.
+      const stX0 = 0.85, stX1 = 3.75, numSteps = 13;
+      const stepRun = (stX1 - stX0) / numSteps, stepRise = LAYOUT.FL / numSteps;
+      const stZ = -10.1;                                   // eje de la escalera (ancho 1.1 → z -9.55 … -10.65)
+      for (let i = 0; i < numSteps; i++) {
+        addBox(root, stepRun, stepRise * (i + 1), 1.1, MAT.steel, stX0 + (i + 0.5) * stepRun, (stepRise * (i + 1)) / 2, stZ);
+      }
+      const hAt = x => LAYOUT.FL * (x - stX0) / (stX1 - stX0);
+      // pasamanos: lado exterior (z = -10.65) y lado interior mientras la escalera no toca la pared (x < 2.2)
+      addCylinderBar(root, [stX0, 0.9, -10.65], [stX1, LAYOUT.FL + 0.9, -10.65], 0.035, MAT.steel);
+      addCylinderBar(root, [stX0, 0.45, -10.65], [stX1, LAYOUT.FL + 0.45, -10.65], 0.02, MAT.steel);
+      addCylinderBar(root, [stX0, 0, -10.65], [stX0, 0.9, -10.65], 0.025, MAT.steel);
+      addCylinderBar(root, [stX0, 0.9, -9.55], [2.2, hAt(2.2) + 0.9, -9.55], 0.035, MAT.steel);
+      addCylinderBar(root, [stX0, 0, -9.55], [stX0, 0.9, -9.55], 0.025, MAT.steel);
+
+      addBox(root, 2.8, 0.26, 8.5, MAT.floor, 3.6, LAYOUT.FL - 0.13, -5.25);               // losa de Gerencia
+      addBox(root, 1.25, 0.26, 1.3, MAT.floor, 4.375, LAYOUT.FL - 0.13, -10.1);            // descanso junto a la puerta
+      for (const cx of [3.85, 4.8]) addBox(root, 0.18, LAYOUT.FL - 0.26, 0.18, MAT.conc, cx, (LAYOUT.FL - 0.26) / 2, -10.65);
+      addRailing(root, [3.8, -10.7], [4.9, -10.7], LAYOUT.FL);                              // borde del descanso
+
+      // cara trasera de Gerencia con la puerta (x 4.0 → 4.8) que da al descanso
+      addBox(root, 1.8, 2.7, 0.12, MAT.wall, 3.1, LAYOUT.FL + 1.35, -9.5);
+      addBox(root, 0.2, 2.7, 0.12, MAT.wall, 4.9, LAYOUT.FL + 1.35, -9.5);
+      addBox(root, 0.8, 0.6, 0.12, MAT.wall, 4.4, LAYOUT.FL + 2.4, -9.5);
+      addBox(root, 0.07, 2.1, 0.08, MAT.steel, 4.0, LAYOUT.FL + 1.05, -9.5);
+      addBox(root, 0.07, 2.1, 0.08, MAT.steel, 4.8, LAYOUT.FL + 1.05, -9.5);
+      addBox(root, 0.5, 0.2, 0.04, mt(0x1e3a8a), 4.4, LAYOUT.FL + 2.15, -9.57);             // placa GERENCIA
+      const gerLeaf = new THREE.Group();
+      gerLeaf.position.set(4.8, LAYOUT.FL, -9.5);
+      gerLeaf.rotation.y = THREE.MathUtils.degToRad(70);                                   // hoja entreabierta hacia adentro
+      addBox(gerLeaf, 0.8, 2.05, 0.05, MAT.glass, -0.4, 1.03, 0);
+      root.add(gerLeaf);
+      addBox(roof, 2.8, 0.08, 1.4, MAT.roofCorrugated, 3.6, LAYOUT.FL + 2.7, -8.85);
+
+      addBox(root, 2.8, 2.7, 0.12, MAT.wall, 3.6, LAYOUT.FL + 1.35, -1.0);
+      addBox(root, 0.12, 2.7, 8.5, MAT.wall, 2.2, LAYOUT.FL + 1.35, -5.25);
+      addBox(root, 0.06, 1.2, 2.4, MAT.glass, 2.2, LAYOUT.FL + 1.4, -4.6);
+
+      // --- Mobiliario de Gerencia (según foto): tablero con logo, escritorio grande, silla gamer,
+      //     segundo escritorio con monitor y estante, cajas y morral ---
+      const FLR = LAYOUT.FL;
+      const woodDesk = mt(0xc9a46a, { roughness: 0.7 });
+      const blackMat = mt(0x0f172a, { roughness: 0.6 });
+      const cardboard = mt(0xb08968, { roughness: 0.9 });
+
+      // tablero blanco con el logo (detrás del escritorio principal)
+      addBox(root, 2.3, 2.3, 0.06, mt(0xf1f5f9, { roughness: 0.85 }), 3.6, FLR + 1.15, -2.1);
+      const boardLogo = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.1, 0.35),
+        new THREE.MeshStandardMaterial({ map: createFacadeSignTexture(), roughness: 0.6 })
+      );
+      boardLogo.position.set(3.2, FLR + 1.45, -2.14);
+      boardLogo.rotation.y = Math.PI;
+      root.add(boardLogo);
+
+      // escritorio principal de madera (largo, con panel frontal)
+      addBox(root, 1.8, 0.05, 0.7, woodDesk, 3.6, FLR + 0.74, -3.2);
+      addBox(root, 0.05, 0.72, 0.66, woodDesk, 2.74, FLR + 0.36, -3.2);
+      addBox(root, 0.05, 0.72, 0.66, woodDesk, 4.46, FLR + 0.36, -3.2);
+      addBox(root, 1.7, 0.4, 0.03, woodDesk, 3.6, FLR + 0.52, -3.5);
+      addBox(root, 0.45, 0.025, 0.15, blackMat, 3.35, FLR + 0.78, -3.3);              // teclado
+      addBox(root, 0.5, 0.3, 0.03, blackMat, 3.75, FLR + 1.0, -3.0);                   // monitor
+      addBox(root, 0.06, 0.2, 0.06, blackMat, 3.75, FLR + 0.86, -3.0);
+      addBox(root, 0.3, 0.015, 0.22, mt(0xf8fafc), 3.1, FLR + 0.775, -3.1);            // papeles
+      addBox(root, 0.06, 0.04, 0.09, blackMat, 3.75, FLR + 0.78, -3.3);                // mouse
+
+      // silla gamer negra entre el escritorio y el tablero
+      const gamingChair = new THREE.Group();
+      gamingChair.position.set(3.55, FLR, -2.6);
+      addBox(gamingChair, 0.5, 0.08, 0.5, blackMat, 0, 0.48, 0);
+      addBox(gamingChair, 0.5, 0.85, 0.09, blackMat, 0, 0.95, 0.24);
+      addBox(gamingChair, 0.06, 0.4, 0.06, mt(0x475569, { metalness: 0.8 }), 0, 0.24, 0);
+      addBox(gamingChair, 0.45, 0.04, 0.45, mt(0x475569, { metalness: 0.8 }), 0, 0.03, 0);
+      root.add(gamingChair);
+
+      // cajas y morral junto al escritorio principal
+      addBox(root, 0.55, 0.4, 0.5, cardboard, 2.6, FLR + 0.2, -3.5);
+      addBox(root, 0.5, 0.35, 0.45, cardboard, 2.55, FLR + 0.175, -2.6);
+      addBox(root, 0.36, 0.48, 0.2, blackMat, 2.55, FLR + 0.59, -2.6);                 // morral
+      addBox(root, 0.5, 0.35, 0.5, cardboard, 3.0, FLR + 0.175, -1.5);                 // cajas tras el tablero
+      addBox(root, 0.5, 0.35, 0.5, cardboard, 4.3, FLR + 0.175, -1.5);
+
+      // segundo escritorio (blanco/madera) junto a la pared este, con monitor y estante
+      addBox(root, 0.6, 0.05, 1.2, mt(0xf1f5f9, { roughness: 0.7 }), 4.5, FLR + 0.72, -5.8);
+      addBox(root, 0.05, 0.7, 0.55, woodDesk, 4.22, FLR + 0.35, -5.45);
+      addBox(root, 0.05, 0.7, 0.55, woodDesk, 4.22, FLR + 0.35, -6.15);
+      addBox(root, 0.03, 0.3, 0.5, blackMat, 4.62, FLR + 0.92, -5.8);                  // monitor
+      addBox(root, 0.05, 0.18, 0.06, blackMat, 4.62, FLR + 0.82, -5.8);
+      addBox(root, 0.16, 0.025, 0.42, blackMat, 4.35, FLR + 0.755, -5.8);              // teclado
+      addBox(root, 0.2, 0.04, 0.28, mt(0xf8fafc), 4.4, FLR + 0.76, -6.3);              // cuaderno
+      const chair2 = new THREE.Group();
+      chair2.position.set(3.85, FLR, -5.8);
+      addBox(chair2, 0.45, 0.08, 0.45, blackMat, 0, 0.46, 0);
+      addBox(chair2, 0.08, 0.6, 0.45, blackMat, -0.22, 0.8, 0);
+      addBox(chair2, 0.06, 0.4, 0.06, mt(0x475569, { metalness: 0.8 }), 0, 0.22, 0);
+      root.add(chair2);
+      addBox(root, 0.4, 1.0, 0.9, mt(0xf1f5f9, { roughness: 0.7 }), 4.74, FLR + 0.5, -7.1);   // estante
+      for (let i = 0; i < 3; i++) addBox(root, 0.3, 0.02, 0.85, woodDesk, 4.74, FLR + 0.3 + i * 0.3, -7.1);
+      for (const [fz, fc] of [[-6.8, 0xdc2626], [-7.0, 0x1e3a8a], [-7.2, 0xf8fafc], [-7.4, 0x15803d]]) addBox(root, 0.28, 0.24, 0.1, mt(fc), 4.74, FLR + 0.43, fz);
+      addBox(root, 0.5, 0.45, 0.5, cardboard, 2.75, FLR + 0.225, -8.0);                // caja «SMI»
+
+      return { root, roof, shell, floorLosaGroup };
+    }
+
+    const { root, roof, shell, floorLosaGroup } = buildDigitalTwin();
+    scene.add(root);
+
+    // =========================================================================
+    // 7. VISTAS DE CÁMARA (ADAPTADAS A D=34 Y NUEVA DISTRIBUCIÓN)
+    // =========================================================================
+    const CAMERA_VIEWS = {
+      ext: { pos: [14, 6.8, 15], target: [0, 2.5, -6], title: "Zona Exterior & Fachada", desc: "Parapeta grafito 10x8.2m, vano despejado y vecinos Tecniracer / Auto Rueda" },
+      p1: { pos: [-2.5, 2.2, 1.5], target: [0.5, 1.4, -22], title: "Taller Principal (Planta 1)", desc: "Elevadores rojo y azul, bahías mecánicas y nave despejada" },
+      rec: { pos: [1.3, 1.7, -3.2], target: [3.8, 1.5, -4.2], title: "Recepción & Sala de Espera", desc: "Mostrador, sofá azul, vitrina Bosch y mural" },
+      arch: { pos: [0.5, 1.6, -9.6], target: [3.8, 1.3, -8.85], title: "Archivo & Ruta de Evacuación", desc: "Puerta de reja con candado, señal Sura, estantes interiores y escalera a Gerencia" },
+      ger: { pos: [1.6, LAYOUT.FL + 1.7, -4.5], target: [3.8, LAYOUT.FL + 1.2, -5.5], title: "Oficina de Gerencia (Planta 2)", desc: "Cuarto cerrado, escritorio en L, monitores y vista de nave" },
+      rampa: { pos: [-3.25, 2.2, -1], target: [-3.25, LAYOUT.BASE + 0.5, -10], title: "Rampa Vehicular", desc: "Ranurado chevron, línea curva y baranda lateral" },
+      taller_esp: { pos: [1.78, LAYOUT.BASE + 1.8, -4.2], target: [1.78, LAYOUT.BASE + 1.1, -9.0], title: "Taller Especializado Subterráneo", desc: "A la derecha de la rampa bajo losa P1, piso de acero y máquinas" },
+      sot: { pos: [-3.5, LAYOUT.BASE + 1.8, -15.5], target: [0, LAYOUT.BASE + 1.2, -26], title: "Sótano & Parqueadero", desc: "Columnas maestras, tubería azul de aire y flota vehicular" },
+      jaulas: { pos: [1.2, LAYOUT.BASE + 1.7, -22.5], target: [3.5, LAYOUT.BASE + 1.4, -22.5], title: "Herramienta Especializada", desc: "Jaulas gemelas este de malla expandida y estanterías" },
+      aer: { pos: [0, 48, -17], target: [0, 0, -17], title: "Vista Isométrica Aérea", desc: "Plano arquitectónico completo proporcional a 10 x 34 m" }
+    };
+
+    // =========================================================================
+    // 8. NAVEGACIÓN MEJORADA (ORBITAL + PASEO EN PRIMERA PERSONA)
+    // =========================================================================
+    roof.traverse(c => { if (c.isMesh && c.material) c.material = c.material.clone(); });
+
+    controls.zoomToCursor = true;
+    controls.rotateSpeed = 0.8;
+    controls.zoomSpeed = 1.3;
+    controls.panSpeed = 1.0;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 0.3;
+    controls.maxDistance = 90;
+    controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+    const ORBIT_BOUNDS = new THREE.Box3(
+      new THREE.Vector3(-40, LAYOUT.BASE, -LAYOUT.D - 6),
+      new THREE.Vector3(40, 60, 40)
+    );
+
+    const NAV = {
+      EYE: 1.7,
+      door: { x0: -4.3, x1: 0.3 },
+      ramp: { x0: -4.7, x1: -1.7, zN: -2.5, zS: -13.5 },
+      stair: { x0: 0.85, x1: 3.75, zN: -9.55, zS: -10.65 },   // pegada a la cara trasera, sube hacia +x
+      landing: { x0: 3.75, x1: 4.7, zN: -9.6, zS: -10.7 },
+      room: { x0: -1.05, zN: -3.2, zS: -13.15, doorX0: 0.65, doorX1: 2.9 },
+      ger: { x0: 2.35, x1: 4.85, zN: -1.2, zS: -9.4, doorX0: 4.0, doorX1: 4.8 }
+    };
+
+    function minCamY(x, z) {
+      const inNave = Math.abs(x) < 4.9 && z < -0.3 && z > -LAYOUT.D;
+      if (inNave && z < NAV.ramp.zS) return LAYOUT.BASE + 0.3;
+      if (x > NAV.ramp.x0 - 0.3 && x < NAV.ramp.x1 + 0.2 && z < NAV.ramp.zN && z > NAV.ramp.zS)
+        return Math.min(0.3, LAYOUT.BASE * ((NAV.ramp.zN - z) / (NAV.ramp.zN - NAV.ramp.zS)) + 0.3);
+      if (x > NAV.room.x0 && x < 4.8 && z < NAV.room.zN && z > NAV.room.zS) return LAYOUT.BASE + 0.3;
+      return 0.25;
+    }
+
+    let currentView = 'ext';
+    let startCamPos = new THREE.Vector3();
+    let startCamTarget = new THREE.Vector3();
+    let targetCamPos = new THREE.Vector3(...CAMERA_VIEWS.ext.pos);
+    let targetLookAt = new THREE.Vector3(...CAMERA_VIEWS.ext.target);
+    let animProgress = 1.0;
+    let animDuration = 1.4;
+
+    function glideTo(pos, target) {
+      startCamPos.copy(camera.position);
+      startCamTarget.copy(controls.target);
+      targetCamPos.copy(pos);
+      targetLookAt.copy(target);
+      animDuration = Math.min(2.2, Math.max(0.6, startCamPos.distanceTo(pos) * 0.05));
+      animProgress = 0.0;
+    }
+
+    controls.addEventListener('start', () => { animProgress = 1.0; });
+
+    const walk = { on: false, x: 0, z: 8.5, level: 'p1', yaw: 0, pitch: 0, eyeY: NAV.EYE, tween: null };
+    const keys = {};
+    const WALK_DEFAULT = { x: -0.2, z: 8.5, level: 'p1', yaw: 0 };
+    const WALK_SPAWNS = {
+      ext: null, aer: null,
+      p1: { x: -3.8, z: -1.0, level: 'p1', yaw: 0 },
+      rec: { x: 1.3, z: -3.5, level: 'p1', yaw: -Math.PI / 2 },
+      arch: { x: 0.6, z: -8.85, level: 'p1', yaw: -Math.PI / 2 },
+      ger: { x: 3.8, z: -6.0, level: 'p2', yaw: Math.PI },
+      rampa: { x: -3.25, z: -1.2, level: 'p1', yaw: 0, pitch: -0.25 },
+      taller_esp: { x: 1.78, z: -12.5, level: 'sot', yaw: Math.PI },
+      sot: { x: -3.2, z: -14.6, level: 'sot', yaw: 0 },
+      jaulas: { x: 1.2, z: -22.5, level: 'sot', yaw: -Math.PI / 2 }
+    };
+
+    const walkObstacles = [];
+    root.updateMatrixWorld(true);
+    root.children.forEach(ch => {
+      if (ch.userData && ch.userData.isCar && Math.abs(ch.rotation.x) < 0.01) {
+        const b = new THREE.Box3().setFromObject(ch);
+        walkObstacles.push({ level: ch.position.y < -1 ? 'sot' : 'p1', x0: b.min.x - 0.2, x1: b.max.x + 0.2, z0: b.min.z - 0.2, z1: b.max.z + 0.2 });
+      }
+    });
+
+    function blockedByObstacle(level, x, z) {
+      for (const o of walkObstacles) if (o.level === level && x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1) return true;
+      return false;
+    }
+
+    const inRamp = (x, z) => x >= NAV.ramp.x0 && x <= NAV.ramp.x1 && z <= NAV.ramp.zN && z >= NAV.ramp.zS;
+    const inStair = (x, z) => x >= NAV.stair.x0 && x <= NAV.stair.x1 && z <= NAV.stair.zN && z >= NAV.stair.zS;
+
+    function floorY(level, x, z) {
+      if (inRamp(x, z)) return LAYOUT.BASE * ((NAV.ramp.zN - z) / (NAV.ramp.zN - NAV.ramp.zS));
+      if (inStair(x, z)) return LAYOUT.FL * THREE.MathUtils.clamp((x - NAV.stair.x0) / (NAV.stair.x1 - NAV.stair.x0), 0, 1);
+      if (level === 'p2') return LAYOUT.FL;
+      if (level === 'sot') return LAYOUT.BASE;
+      return (z > 1.0 && z < 6.2) ? 0.18 : 0;
+    }
+
+    function resolveMove(st, nx, nz) {
+      const N = NAV, lvl = st.level;
+      if (Math.abs(nx) > 30 || nz > 22 || nz < -LAYOUT.D + 0.35) return null;
+      const crossing = (st.z >= 0) !== (nz >= 0);
+      if (crossing && (nx < N.door.x0 || nx > N.door.x1 || lvl !== 'p1')) return null;
+      if (nz >= 0) return { x: nx, z: nz, level: 'p1' };
+      if (Math.abs(nx) > 4.7) return null;
+      const wasRamp = inRamp(st.x, st.z), isRamp = inRamp(nx, nz);
+      const wasStair = inStair(st.x, st.z), isStair = inStair(nx, nz);
+
+      if (isRamp) {
+        if (!wasRamp) {
+          const fromNorth = st.z > N.ramp.zN && lvl === 'p1';
+          const fromSouth = st.z < N.ramp.zS && lvl === 'sot';
+          if (!fromNorth && !fromSouth) return null;
+        }
+        return { x: nx, z: nz, level: lvl };
+      }
+      if (wasRamp) {
+        if (nz > N.ramp.zN) return { x: nx, z: nz, level: 'p1' };
+        if (nz < N.ramp.zS) return { x: nx, z: nz, level: 'sot' };
+        return null;
+      }
+      if (isStair) {
+        if (!wasStair) {
+          const fromFoot = st.x < N.stair.x0 && lvl === 'p1';
+          const fromTop = st.x > N.stair.x1 && lvl === 'p2';
+          if (!fromFoot && !fromTop) return null;
+        }
+        return { x: nx, z: nz, level: lvl };
+      }
+      if (wasStair) {
+        if (nx < N.stair.x0) return { x: nx, z: nz, level: 'p1' };
+        if (nx > N.stair.x1 && nz <= N.landing.zN && nz >= N.landing.zS) return { x: nx, z: nz, level: 'p2' };
+        return null;
+      }
+      if (lvl === 'p2') {
+        const G = N.ger, L = N.landing;
+        const inGer = nx >= G.x0 && nx <= G.x1 && nz <= G.zN && nz >= G.zS;
+        const inLand = nx >= L.x0 && nx <= L.x1 && nz <= L.zN && nz >= L.zS;
+        if (nz < G.zS && nz > L.zN) return (nx >= G.doorX0 && nx <= G.doorX1) ? { x: nx, z: nz, level: 'p2' } : null;   // puerta de Gerencia
+        return (inGer || inLand) ? { x: nx, z: nz, level: 'p2' } : null;
+      }
+      if (lvl === 'sot') {
+        if (nz <= N.ramp.zS + 0.05) return { x: nx, z: nz, level: 'sot' };
+        const R = N.room;
+        if (nz < R.zS) return (nx >= R.doorX0 && nx <= R.doorX1) ? { x: nx, z: nz, level: 'sot' } : null;
+        if (nz <= R.zN && nx >= R.x0) return { x: nx, z: nz, level: 'sot' };
+        return null;
+      }
+      // Habitaciones cerradas (x > 2.2, z -1 → -14.4): solo se entra por la puerta de Sala de espera
+      // o por la puerta de reja de la Bodega; Recepción y Bodega están separadas por un tabique.
+      const inRooms = (x, z) => x > 2.2 && z < -1.0 && z > -9.5;
+      const doorZ = z => (z <= -1.05 && z >= -2.25) || (z <= -8.3 && z >= -9.4);
+      const wasIn = inRooms(st.x, st.z), isIn = inRooms(nx, nz);
+      if (isIn !== wasIn && !doorZ(isIn ? nz : st.z)) return null;
+      if (isIn && wasIn && (st.z > -5.6) !== (nz > -5.6)) return null;
+      return { x: nx, z: nz, level: 'p1' };
+    }
+
+    function tryMove(nx, nz) {
+      const st = { x: walk.x, z: walk.z, level: walk.level };
+      for (const [ax, az] of [[nx, nz], [nx, walk.z], [walk.x, nz]]) {
+        const r = resolveMove(st, ax, az);
+        if (!r) continue;
+        if (blockedByObstacle(r.level, ax, az) && !blockedByObstacle(st.level, st.x, st.z)) continue;
+        walk.x = r.x; walk.z = r.z; walk.level = r.level;
+        return;
+      }
+    }
+
+    function walkSpawn(s) {
+      walk.x = s.x; walk.z = s.z; walk.level = s.level;
+      walk.yaw = s.yaw || 0; walk.pitch = s.pitch || 0; walk.tween = null;
+      walk.eyeY = floorY(s.level, s.x, s.z) + NAV.EYE;
+    }
+
+    function walkStep(dt) {
+      if (walk.tween) {
+        const tw = walk.tween;
+        tw.t = Math.min(1, tw.t + dt / 0.5);
+        const k = tw.t * tw.t * (3 - 2 * tw.t);
+        walk.x = tw.fx + (tw.tx - tw.fx) * k;
+        walk.z = tw.fz + (tw.tz - tw.fz) * k;
+        if (tw.t >= 1) walk.tween = null;
+      } else {
+        let f = 0, s = 0;
+        if (keys.KeyW || keys.ArrowUp) f += 1;
+        if (keys.KeyS || keys.ArrowDown) f -= 1;
+        if (keys.KeyD) s += 1;
+        if (keys.KeyA) s -= 1;
+        if (keys.ArrowLeft) walk.yaw += 1.8 * dt;
+        if (keys.ArrowRight) walk.yaw -= 1.8 * dt;
+        if (f || s) {
+          const len = Math.hypot(f, s); f /= len; s /= len;
+          const sp = (keys.ShiftLeft || keys.ShiftRight) ? 7.0 : 3.2;
+          const fx = -Math.sin(walk.yaw), fz = -Math.cos(walk.yaw);
+          const rx = Math.cos(walk.yaw), rz = -Math.sin(walk.yaw);
+          tryMove(walk.x + (fx * f + rx * s) * sp * dt, walk.z + (fz * f + rz * s) * sp * dt);
+        }
+      }
+      const target = floorY(walk.level, walk.x, walk.z) + NAV.EYE;
+      walk.eyeY += (target - walk.eyeY) * Math.min(1, dt * 14);
+      camera.position.set(walk.x, walk.eyeY, walk.z);
+      camera.rotation.set(walk.pitch, walk.yaw, 0, 'YXZ');
+    }
+
+    const btnWalk = document.getElementById('btn-walk');
+    const hint = document.getElementById('nav-hint');
+    function updateHint() {
+      hint.textContent = walk.on
+        ? 'Arrastra: mirar · W A S D / flechas: caminar · Shift: correr · Doble clic: ir allí · P: salir'
+        : 'Arrastra: girar · Clic derecho: mover · Rueda: zoom al cursor · Doble clic: enfocar · W A S D / Q E: desplazar · P: Paseo';
+    }
+
+    function setWalkMode(on) {
+      if (on === walk.on) return;
+      walk.on = on;
+      btnWalk.classList.toggle('bg-emerald-600', on);
+      btnWalk.classList.toggle('text-white', on);
+      document.getElementById('cam-mode-badge').textContent = on ? 'Paseo' : 'Orbital';
+      document.getElementById('walk-pad').classList.toggle('hidden', !on);
+      controls.enabled = !on;
+      animProgress = 1.0;
+      if (on) {
+        camera.rotation.order = 'YXZ';
+        walkSpawn(WALK_SPAWNS[currentView] || WALK_DEFAULT);
+      } else {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        controls.target.copy(camera.position).addScaledVector(dir, 4);
+        camera.rotation.order = 'XYZ';
+        controls.update();
+      }
+      updateHint();
+    }
+    btnWalk.onclick = () => setWalkMode(!walk.on);
+
+    // Sistema de ciclo de estados de techo (0: Sólido, 1: Transparente, 2: Oculto)
+    let roofState = 0;
+    const roofIndicator = document.getElementById('roof-indicator');
+    const roofLabel = document.getElementById('roof-label');
+    function applyRoofState(state) {
+      roofState = state % 3;
+      if (roofState === 0) {
+        roof.visible = true;
+        roof.traverse(c => {
+          if (c.isMesh && c.material) {
+            c.material.transparent = false;
+            c.material.opacity = 1.0;
+            c.material.depthWrite = true;
+          }
+        });
+        roofIndicator.textContent = 'S';
+        roofIndicator.className = 'w-3.5 h-3.5 rounded-md bg-blue-600 border border-blue-400 flex items-center justify-center text-[9px] font-bold text-white';
+        roofLabel.textContent = 'Techo: Sólido';
+      } else if (roofState === 1) {
+        roof.visible = true;
+        roof.traverse(c => {
+          if (c.isMesh && c.material) {
+            c.material.transparent = true;
+            c.material.opacity = 0.12;
+            c.material.depthWrite = false;
+          }
+        });
+        roofIndicator.textContent = 'T';
+        roofIndicator.className = 'w-3.5 h-3.5 rounded-md bg-sky-600 border border-sky-400 flex items-center justify-center text-[9px] font-bold text-white';
+        roofLabel.textContent = 'Techo: Transp.';
+      } else {
+        roof.visible = false;
+        roofIndicator.textContent = 'O';
+        roofIndicator.className = 'w-3.5 h-3.5 rounded-md bg-slate-700 border border-slate-500 flex items-center justify-center text-[9px] font-bold text-white';
+        roofLabel.textContent = 'Techo: Oculto';
+      }
+    }
+    document.getElementById('btn-roof-cycle').onclick = () => applyRoofState(roofState + 1);
+
+    function navigateToView(viewKey) {
+      const v = CAMERA_VIEWS[viewKey];
+      if (!v) return;
+      currentView = viewKey;
+      document.getElementById('view-title').textContent = v.title;
+      document.getElementById('view-desc').textContent = v.desc;
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.dataset.v === viewKey));
+      if (walk.on) {
+        const sp = WALK_SPAWNS[viewKey];
+        if (sp) { walkSpawn(sp); return; }
+        setWalkMode(false);
+      }
+      glideTo(new THREE.Vector3(...v.pos), new THREE.Vector3(...v.target));
+      if (viewKey === 'aer' && roofState === 0) applyRoofState(1);
+    }
+    document.querySelectorAll('[data-v]').forEach(btn => { btn.onclick = () => navigateToView(btn.dataset.v); });
+    document.getElementById('btn-reset').onclick = () => { setWalkMode(false); navigateToView('ext'); };
+
+    // Toggles Muros y Losa P1
+    document.getElementById('m').onchange = (e) => (shell.visible = e.target.checked);
+    document.getElementById('losa-toggle').onchange = (e) => (floorLosaGroup.visible = e.target.checked);
+
+    // Doble clic / doble toque
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    let roofAutoFaded = false;
+    const chainVisible = o => { for (let n = o; n; n = n.parent) if (!n.visible) return false; return true; };
+
+    function pickPoint(ev) {
+      const r = renderer.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      raycaster.setFromCamera(ndc, camera);
+      for (const h of raycaster.intersectObjects(scene.children, true)) {
+        if (!h.object.isMesh || !chainVisible(h.object)) continue;
+        let inRoof = false;
+        for (let n = h.object; n; n = n.parent) if (n === roof) { inRoof = true; break; }
+        if (inRoof && (roofState !== 0 || roofAutoFaded)) continue;
+        return h;
+      }
+      return null;
+    }
+
+    function focusOn(h) {
+      const p = h.point;
+      const dir = new THREE.Vector3().subVectors(camera.position, p);
+      const dist = dir.length();
+      dir.normalize();
+      const newDist = Math.min(dist, THREE.MathUtils.clamp(dist * 0.45, 1.2, 9));
+      const newPos = p.clone().addScaledVector(dir, newDist);
+      newPos.y = Math.max(newPos.y, minCamY(newPos.x, newPos.z));
+      glideTo(newPos, p);
+    }
+
+    function walkTeleport(h) {
+      const n = h.face ? h.face.normal.clone().transformDirection(h.object.matrixWorld) : new THREE.Vector3(0, 1, 0);
+      if (n.y < 0.6) return;
+      const p = h.point;
+      let lvl = walk.level;
+      if (!inRamp(p.x, p.z)) lvl = inStair(p.x, p.z) ? 'p1' : (p.y > 2.8 ? 'p2' : (p.y < -1.2 ? 'sot' : 'p1'));
+      const probe = { x: p.x, z: p.z, level: lvl };
+      const r = resolveMove(probe, p.x, p.z);
+      if (!r || blockedByObstacle(r.level, p.x, p.z)) return;
+      walk.level = r.level;
+      walk.tween = { fx: walk.x, fz: walk.z, tx: p.x, tz: p.z, t: 0 };
+    }
+
+    let downPos = null, lastTap = { t: 0, x: 0, y: 0 }, look = null;
+    const dom = renderer.domElement;
+    dom.addEventListener('pointerdown', e => {
+      downPos = { x: e.clientX, y: e.clientY, t: performance.now() };
+      if (walk.on && e.button !== 2) { look = { x: e.clientX, y: e.clientY, id: e.pointerId }; dom.setPointerCapture(e.pointerId); }
+    });
+
+    dom.addEventListener('pointermove', e => {
+      if (!walk.on || !look || e.pointerId !== look.id) return;
+      const k = e.pointerType === 'touch' ? 0.006 : 0.0035;
+      walk.yaw -= (e.clientX - look.x) * k;
+      walk.pitch = THREE.MathUtils.clamp(walk.pitch - (e.clientY - look.y) * k, -1.3, 1.3);
+      look.x = e.clientX; look.y = e.clientY;
+    });
+
+    const endLook = e => { if (look && e.pointerId === look.id) look = null; };
+    dom.addEventListener('pointercancel', endLook);
+    dom.addEventListener('pointerup', e => {
+      endLook(e);
+      if (!downPos) return;
+      const now = performance.now();
+      const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+      if (moved < 8 && now - downPos.t < 350 && e.button !== 2) {
+        if (now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 24) {
+          lastTap.t = 0;
+          const h = pickPoint(e);
+          if (h) (walk.on ? walkTeleport(h) : focusOn(h));
+        } else {
+          lastTap = { t: now, x: e.clientX, y: e.clientY };
+        }
+      }
+      downPos = null;
+    });
+    dom.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Teclado
+    window.addEventListener('keydown', e => {
+      if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      if (e.code === 'KeyP' && !e.repeat) { setWalkMode(!walk.on); return; }
+      keys[e.code] = true;
+      if (animProgress < 1.0) animProgress = 1.0;
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+    });
+    window.addEventListener('keyup', e => { keys[e.code] = false; });
+    window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+    document.querySelectorAll('#walk-pad [data-key]').forEach(b => {
+      const k = b.dataset.key;
+      b.addEventListener('pointerdown', e => { e.preventDefault(); keys[k] = true; b.setPointerCapture(e.pointerId); });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(ev => b.addEventListener(ev, () => { keys[k] = false; }));
+    });
+
+    function handleOrbitKeys(dt) {
+      let f = 0, s = 0, v = 0;
+      if (keys.KeyW || keys.ArrowUp) f++;
+      if (keys.KeyS || keys.ArrowDown) f--;
+      if (keys.KeyD || keys.ArrowRight) s++;
+      if (keys.KeyA || keys.ArrowLeft) s--;
+      if (keys.KeyQ) v++;
+      if (keys.KeyE) v--;
+      if (!f && !s && !v) return;
+      const dist = camera.position.distanceTo(controls.target);
+      const speed = ((keys.ShiftLeft || keys.ShiftRight) ? 2.5 : 1) * THREE.MathUtils.clamp(dist * 0.6, 3, 24);
+      const fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      fwd.y = 0;
+      if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+      fwd.normalize();
+      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+      const mv = new THREE.Vector3().addScaledVector(fwd, f).addScaledVector(right, s);
+      mv.y += v;
+      if (mv.lengthSq() === 0) return;
+      mv.normalize().multiplyScalar(speed * dt);
+      camera.position.add(mv);
+      controls.target.add(mv);
+    }
+
+    // =========================================================================
+    // 9. DÍA/NOCHE, ELEVADORES, GLB, RESIZE E INICIO
+    // =========================================================================
+    let isNightMode = false;
+    const btnLights = document.getElementById('btn-lights');
+    const lightIcon = document.getElementById('light-icon');
+    btnLights.onclick = () => {
+      isNightMode = !isNightMode;
+      if (isNightMode) {
+        sunLight.intensity = 0.2;
+        hemiLight.intensity = 0.35;
+        scene.background.set(0x020617);
+        scene.fog.color.set(0x020617);
+        lightIcon.setAttribute('data-lucide', 'moon');
+        btnLights.querySelector('i').classList.replace('text-amber-400', 'text-blue-400');
+      } else {
+        sunLight.intensity = 2.3;
+        hemiLight.intensity = 1.25;
+        scene.background.set(0x0f172a);
+        scene.fog.color.set(0x0f172a);
+        lightIcon.setAttribute('data-lucide', 'sun');
+        btnLights.querySelector('i').classList.replace('text-blue-400', 'text-amber-400');
+      }
+      lucide.createIcons();
+    };
+
+    let elevatorsActive = true;
+    const btnElevators = document.getElementById('btn-elevators');
+    btnElevators.onclick = () => {
+      elevatorsActive = !elevatorsActive;
+      btnElevators.classList.toggle('bg-blue-600', elevatorsActive);
+    };
+
+    document.getElementById('glb').onclick = () => {
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        root,
+        buffer => {
+          const blob = new Blob([buffer], { type: 'model/gltf-binary' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'taller_principal_motors_digital_twin_D34.glb';
+          link.click();
+        },
+        error => console.error('Error exportando GLB:', error),
+        { binary: true }
+      );
+    };
+
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+
+    let roofKey = '';
+    function syncRoofAuto() {
+      const p = camera.position;
+      const above = Math.abs(p.x) < 5.2 && p.z < 0 && p.z > -LAYOUT.D && p.y > LAYOUT.H;
+      roofAutoFaded = roofState === 0 && above;
+      const key = roofState + ':' + roofAutoFaded;
+      if (key === roofKey) return;
+      roofKey = key;
+      if (roofState !== 0) return;
+      roof.traverse(c => {
+        if (c.isMesh && c.material) {
+          c.material.transparent = roofAutoFaded;
+          c.material.opacity = roofAutoFaded ? 0.12 : 1.0;
+          c.material.depthWrite = !roofAutoFaded;
+        }
+      });
+    }
+
+    navigateToView('ext');
+    updateHint();
+    lucide.createIcons();
+
+    // =========================================================================
+    // 10. BUCLE DE ANIMACIÓN Y RENDERIZADO
+    // =========================================================================
+    const clock = new THREE.Clock();
+    const cubicEase = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      const time = clock.getElapsedTime();
+      const dt = Math.min(delta, 0.033);
+
+      if (walk.on) {
+        walkStep(dt);
+      } else {
+        if (animProgress < 1.0) {
+          animProgress += delta / animDuration;
+          const t = cubicEase(Math.min(1.0, animProgress));
+          camera.position.lerpVectors(startCamPos, targetCamPos, t);
+          controls.target.lerpVectors(startCamTarget, targetLookAt, t);
+        } else {
+          handleOrbitKeys(dt);
+        }
+        controls.update();
+        controls.target.clamp(ORBIT_BOUNDS.min, ORBIT_BOUNDS.max);
+        const my = minCamY(camera.position.x, camera.position.z);
+        if (camera.position.y < my) camera.position.y = my;
+      }
+
+      syncRoofAuto();
+
+      if (elevatorsActive) {
+        hydraulicLifts.forEach((lift, idx) => {
+          const wave = (Math.sin(time * 0.85 + idx * 1.6) + 1) / 2;
+          lift.platform.position.y = 0.12 + wave * 1.45;
+        });
+      }
+
+      rotatingTools.forEach(tool => { tool.rotation.x += 12.0 * delta; });
+
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+
+</html>
