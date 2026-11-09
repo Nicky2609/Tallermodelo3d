@@ -508,6 +508,26 @@
       return t;
     }
 
+    function createTitleTexture(text) {
+      const c = document.createElement('canvas');
+      c.width = 1024; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#1e3a8a';
+      ctx.fillRect(0, 0, 1024, 256);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(10, 10, 1004, 236);
+      ctx.fillStyle = '#ffffff';
+      let fs = 84;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      do { ctx.font = 'bold ' + fs + 'px Arial, sans-serif'; fs -= 2; } while (ctx.measureText(text).width > 920 && fs > 20);
+      ctx.fillText(text, 512, 132);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      return t;
+    }
+
     function createArchivoSignTexture() {
       const c = document.createElement('canvas');
       c.width = 512; c.height = 114;
@@ -935,6 +955,16 @@
       addBox(espPortalSign, 2.1, 0.08, 0.07, mt(0x38bdf8), 0, -0.16, 0);
       espGroup.add(espPortalSign);
 
+      // Título del taller (cara interior, sobre la puerta del fondo) y cara exterior
+      const titleMat = new THREE.MeshStandardMaterial({ map: createTitleTexture('HERRAMIENTAS ESPECIALIZADAS'), emissive: 0x1e3a8a, emissiveIntensity: 0.25, roughness: 0.5 });
+      const titleIn = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.6), titleMat);
+      titleIn.position.set(espXCenter, 2.72, -13.18);
+      espGroup.add(titleIn);
+      const titleOut = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.45), titleMat);
+      titleOut.rotation.y = Math.PI;
+      titleOut.position.set(espXCenter, 2.3, -13.39);
+      espGroup.add(titleOut);
+
       addBox(espGroup, 2.6, 0.9, 1.2, mt(0x1e293b, { roughness: 0.6 }), espXCenter, 0.45, -7.8);
       addBox(espGroup, 0.6, 0.25, 0.35, mt(0xdc2626), espXCenter - 0.7, 0.98, -7.8);
       addBox(espGroup, 0.45, 0.35, 0.45, mt(0x64748b, { metalness: 0.9 }), espXCenter + 0.6, 1.05, -7.8);
@@ -993,9 +1023,6 @@
       const cageGroup = new THREE.Group();
       cageGroup.position.set(3.4, LAYOUT.BASE, -22.5);
       // (malla metálica retirada; el rótulo azul pasa a la pared este, sobre los gabinetes)
-      addBox(cageGroup, 0.06, 0.25, 1.2, mt(0x1e3a8a), 1.55, 2.55, 0);
-      addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, -1.1);
-      addBox(cageGroup, 0.6, 2.1, 1.6, MAT.orange, 0.8, 1.05, 1.1);
       root.add(cageGroup);
 
       const mercCLA = createCar('sedan', 0xffffff, { plate: 'CLA 200' });
@@ -1006,16 +1033,44 @@
       // estantes en la pared este del sótano (donde estaba el carro negro)
       addRack(4.65, -27.5, true, 1.7, LAYOUT.BASE);
       addRack(4.65, -29.4, true, 1.7, LAYOUT.BASE);
+      for (const rz of [-21.2, -23.1, -31.3, -32.9]) addRack(4.65, rz, true, 1.7, LAYOUT.BASE);
+
+      // Estantes tipo góndola (blancos) FRENTE a los estantes naranja de la pared este
+      function addGondola(cx, cz, sections, cy) {
+        const gd = new THREE.Group();
+        gd.position.set(cx, cy, cz);
+        const len = sections * 1.2;
+        const gWhite = mt(0xf1f5f9, { roughness: 0.55, metalness: 0.25 });
+        const gEdge = mt(0xa5b4fc, { roughness: 0.4, metalness: 0.5 });
+        const gGray = mt(0x94a3b8, { roughness: 0.5, metalness: 0.5 });
+        addBox(gd, 0.04, 1.9, len, gWhite, -0.2, 0.95, 0);                 // panel trasero
+        addBox(gd, 0.06, 0.12, len + 0.06, gGray, -0.2, 1.93, 0);          // remate superior
+        for (let i = 0; i <= sections; i++) {                               // postes perforados
+          addBox(gd, 0.06, 1.9, 0.05, gGray, -0.17, 0.95, -len / 2 + i * 1.2);
+        }
+        addBox(gd, 0.5, 0.22, len, gWhite, 0.07, 0.11, 0);                  // base inferior
+        addBox(gd, 0.04, 0.2, len, gEdge, 0.33, 0.11, 0);                   // zócalo frontal
+        const prod = [0xdc2626, 0x1e3a8a, 0xe5e7eb, 0x15803d, 0xc2a27a];
+        for (let lv = 0; lv < 3; lv++) {
+          const y = 0.5 + lv * 0.45;
+          addBox(gd, 0.42, 0.03, len, gWhite, 0.03, y, 0);
+          addBox(gd, 0.03, 0.07, len, gEdge, 0.25, y + 0.02, 0);            // labio frontal
+          for (let i = 0; i < Math.floor(len / 0.5); i++) {
+            const bz = -len / 2 + 0.3 + i * 0.5;
+            addBox(gd, 0.28, 0.22, 0.34, mt(prod[(lv + i) % prod.length], { roughness: 0.8 }), 0.03, y + 0.13, bz);
+          }
+        }
+        root.add(gd);
+      }
+      addGondola(2.7, -22.2, 3, LAYOUT.BASE);
+      addGondola(2.7, -30.6, 5, LAYOUT.BASE);
 
       const ecoSport = createCar('suv', 0xd1d5db, { plate: 'ECO 505' });
       ecoSport.position.set(-2.2, LAYOUT.BASE, -26.5);
       ecoSport.rotation.y = Math.PI / 2;
       root.add(ecoSport);
 
-      const intantesMarker = new THREE.Group();
-      intantesMarker.position.set(3.5, LAYOUT.BASE, -31.5);
-      addBox(intantesMarker, 1.4, 2.0, 0.8, mt(0x38bdf8, { transparent: true, opacity: 0.65 }), 0, 1.0, 0);
-      root.add(intantesMarker);
+      // (panel azul retirado)
 
       // --- 4.8 Planta 1 ---
       function createSpecificLift(x, y, z, colorType = 'blue', hasTopBeam = false) {
